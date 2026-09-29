@@ -53,7 +53,7 @@ create table if not exists public.lucky_draws (
 );
 
 insert into public.settings(id) values(1) on conflict(id) do nothing;
-insert into public.admin_secrets(id,pin_hash) values(1,crypt('1121',gen_salt('bf'))) on conflict(id) do nothing;
+insert into public.admin_secrets(id,pin_hash) values(1,extensions.crypt('1121',extensions.gen_salt('bf'))) on conflict(id) do nothing;
 
 alter table public.participants enable row level security; alter table public.rounds enable row level security;
 alter table public.matches enable row level security; alter table public.match_players enable row level security;
@@ -69,14 +69,14 @@ revoke insert,update,delete,truncate,references,trigger on all tables in schema 
 grant select on public.participants,public.rounds,public.matches,public.match_players,public.score_events,public.settings,public.fashion_votes,public.lucky_draws to anon,authenticated;
 
 create or replace function public.verify_admin_pin(p_pin text) returns boolean language sql security definer set search_path=public as $$
-  select exists(select 1 from admin_secrets where id=1 and pin_hash=crypt(p_pin,pin_hash));
+  select exists(select 1 from admin_secrets where id=1 and pin_hash=extensions.crypt(p_pin,pin_hash));
 $$;
 revoke all on function public.verify_admin_pin(text) from public; grant execute on function public.verify_admin_pin(text) to anon,authenticated;
 
 create or replace function public.set_admin_pin(p_old_pin text,p_new_pin text) returns boolean language plpgsql security definer set search_path=public as $$
 begin if not verify_admin_pin(p_old_pin) then raise exception '관리자 PIN이 올바르지 않습니다.'; end if;
   if p_new_pin !~ '^[0-9]{4,12}$' then raise exception 'PIN은 숫자 4~12자리여야 합니다.'; end if;
-  update admin_secrets set pin_hash=crypt(p_new_pin,gen_salt('bf')) where id=1; return true;
+  update admin_secrets set pin_hash=extensions.crypt(p_new_pin,extensions.gen_salt('bf')) where id=1; return true;
 end $$;
 
 -- 한 행을 잠근 상태에서 현재 값에 delta를 더하므로 동시에 +1을 눌러도 입력이 유실되지 않습니다.
