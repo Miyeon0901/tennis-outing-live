@@ -85,7 +85,7 @@ export function useAppData(userName: string) {
   const resetEventData = async (token: string) => {
     if (!supabase) { await demoAdmin('reset_scores', {}); return }
     const { error } = await supabase.rpc('reset_event_data', { p_admin_token: token, p_updated_by: userName })
-    if (error) throw error
+    if (error) throw new Error([error.message,error.details,error.hint,error.code].filter(Boolean).join(' · '))
     await load()
   }
   const demoAdmin = async (action: string, payload: Record<string, unknown>) => setData(prev => {

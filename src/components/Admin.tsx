@@ -37,4 +37,4 @@ function ParticipantAdminRow({participant,onRun}:{participant:Participant;onRun:
 }
 function GenderSelect({value,onChange}:{value:Gender;onChange:(gender:Gender)=>void}){return <select className="gender-select" aria-label="성별" value={value} onChange={e=>onChange(e.target.value as Gender)}><option value="male">남성</option><option value="female">여성</option><option value="unspecified">미지정</option></select>}
 const genderLabel=(gender:Gender)=>gender==='male'?'남':gender==='female'?'여':'미지정'
-const message=(e:unknown)=>e instanceof Error?e.message:'요청을 처리하지 못했습니다.'
+const message=(e:unknown)=>{if(e instanceof Error)return e.message;if(e&&typeof e==='object'){const x=e as {message?:string;details?:string;hint?:string;code?:string};const detail=[x.message,x.details,x.hint,x.code].filter(Boolean).join(' · ');if(detail)return detail}return '요청을 처리하지 못했습니다.'}
