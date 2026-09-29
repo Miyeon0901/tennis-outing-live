@@ -66,6 +66,17 @@ export function useAppData(userName: string) {
     if (error) throw error
     return Boolean(ok)
   }
+  const loginParticipant = async (name: string, phoneLast4: string) => {
+    if (!supabase) {
+      const participant = data.participants.find(p => p.is_active && p.name === name)
+      if (!participant) return null
+      return phoneLast4 === '0000' ? participant : null
+    }
+    const { data: rows, error } = await supabase.rpc('login_participant', { p_name: name, p_phone_last4: phoneLast4 })
+    if (error) throw error
+    const row = rows?.[0]
+    return row ? data.participants.find(p => p.id === row.participant_id) ?? null : null
+  }
   const admin = async (action: string, payload: Record<string, unknown>, token: string) => {
     if (!supabase) { await demoAdmin(action, payload); return }
     const { error } = await supabase.rpc('admin_action', { p_action: action, p_payload: payload, p_admin_token: token, p_updated_by: userName })
@@ -92,5 +103,5 @@ export function useAppData(userName: string) {
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, admin, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, refresh: load }
 }

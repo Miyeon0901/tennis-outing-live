@@ -2,6 +2,10 @@
 insert into public.participants(name)
 select '참가자'||n from generate_series(1,14) n on conflict(name) do nothing;
 update public.participants set gender=case when replace(name,'참가자','')::int%2=1 then 'male' else 'female' end where name ~ '^참가자([1-9]|1[0-4])$' and gender='unspecified';
+insert into public.participant_credentials(participant_id,phone_last4_hash)
+select id,extensions.crypt('0000',extensions.gen_salt('bf'))
+from public.participants
+on conflict(participant_id) do update set phone_last4_hash=excluded.phone_last4_hash,updated_at=now();
 
 do $$ declare ids uuid[]; r1 uuid; r2 uuid; i integer; mid uuid;
 begin

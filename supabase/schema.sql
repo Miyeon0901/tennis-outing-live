@@ -41,6 +41,10 @@ create table if not exists public.settings (
   allow_duplicate_awards boolean not null default true, updated_at timestamptz not null default now()
 );
 create table if not exists public.admin_secrets (id smallint primary key default 1 check(id=1), pin_hash text not null);
+create table if not exists public.participant_credentials (
+  participant_id uuid primary key references public.participants(id) on delete cascade,
+  phone_last4_hash text not null, updated_at timestamptz not null default now()
+);
 create table if not exists public.fashion_votes (
   voter_id uuid primary key references public.participants(id) on delete cascade,
   candidate_id uuid not null references public.participants(id) on delete cascade,
@@ -60,18 +64,33 @@ alter table public.matches enable row level security; alter table public.match_p
 alter table public.score_events enable row level security; alter table public.settings enable row level security;
 alter table public.admin_secrets enable row level security; alter table public.fashion_votes enable row level security;
 alter table public.lucky_draws enable row level security;
+alter table public.participant_credentials enable row level security;
 
 do $$ declare t text; begin foreach t in array array['participants','rounds','matches','match_players','score_events','settings','fashion_votes','lucky_draws'] loop
   execute format('drop policy if exists public_read on public.%I',t);
   execute format('create policy public_read on public.%I for select to anon, authenticated using (true)',t);
 end loop; end $$;
 revoke insert,update,delete,truncate,references,trigger on all tables in schema public from anon,authenticated;
+revoke all on table public.participant_credentials from anon,authenticated;
 grant select on public.participants,public.rounds,public.matches,public.match_players,public.score_events,public.settings,public.fashion_votes,public.lucky_draws to anon,authenticated;
 
 create or replace function public.verify_admin_pin(p_pin text) returns boolean language sql security definer set search_path=public as $$
   select exists(select 1 from admin_secrets where id=1 and pin_hash=extensions.crypt(p_pin,pin_hash));
 $$;
 revoke all on function public.verify_admin_pin(text) from public; grant execute on function public.verify_admin_pin(text) to anon,authenticated;
+
+create or replace function public.login_participant(p_name text,p_phone_last4 text)
+returns table(participant_id uuid,participant_name text,participant_gender text)
+language sql security definer set search_path=public as $$
+  select p.id,p.name,p.gender
+  from participants p join participant_credentials c on c.participant_id=p.id
+  where p.is_active and p.name=trim(p_name)
+    and p_phone_last4 ~ '^[0-9]{4}$'
+    and c.phone_last4_hash=extensions.crypt(p_phone_last4,c.phone_last4_hash)
+  limit 1;
+$$;
+revoke all on function public.login_participant(text,text) from public;
+grant execute on function public.login_participant(text,text) to anon,authenticated;
 
 create or replace function public.set_admin_pin(p_old_pin text,p_new_pin text) returns boolean language plpgsql security definer set search_path=public as $$
 begin if not verify_admin_pin(p_old_pin) then raise exception '관리자 PIN이 올바르지 않습니다.'; end if;
@@ -126,12 +145,22 @@ begin if p_voter_id=p_candidate_id then raise exception '자기 자신에게는 
 end $$;
 
 create or replace function public.admin_action(p_action text,p_payload jsonb,p_admin_token text,p_updated_by text) returns jsonb
-language plpgsql security definer set search_path=public as $$ declare new_match_id uuid; rid uuid; item jsonb; game jsonb; draw_winner uuid;
+language plpgsql security definer set search_path=public as $$ declare new_match_id uuid; new_participant_id uuid; rid uuid; item jsonb; game jsonb; draw_winner uuid;
 begin if not verify_admin_pin(p_admin_token) then raise exception '관리자 PIN이 올바르지 않습니다.'; end if;
  case p_action
-  when 'add_participant' then insert into participants(name,gender) values(trim(p_payload->>'name'),coalesce(p_payload->>'gender','unspecified'));
+  when 'add_participant' then
+    if coalesce(p_payload->>'phone_last4','') !~ '^[0-9]{4}$' then raise exception '휴대폰 번호 뒷자리는 숫자 4자리여야 합니다.'; end if;
+    insert into participants(name,gender) values(trim(p_payload->>'name'),coalesce(p_payload->>'gender','unspecified')) returning id into new_participant_id;
+    insert into participant_credentials(participant_id,phone_last4_hash) values(new_participant_id,extensions.crypt(p_payload->>'phone_last4',extensions.gen_salt('bf')));
   when 'toggle_participant' then update participants set is_active=not is_active where id=(p_payload->>'id')::uuid;
-  when 'update_participant' then update participants set name=trim(p_payload->>'name'),gender=coalesce(p_payload->>'gender',gender) where id=(p_payload->>'id')::uuid;
+  when 'update_participant' then
+    update participants set name=trim(p_payload->>'name'),gender=coalesce(p_payload->>'gender',gender) where id=(p_payload->>'id')::uuid;
+    if coalesce(p_payload->>'phone_last4','')<>'' then
+      if (p_payload->>'phone_last4') !~ '^[0-9]{4}$' then raise exception '휴대폰 번호 뒷자리는 숫자 4자리여야 합니다.'; end if;
+      insert into participant_credentials(participant_id,phone_last4_hash,updated_at)
+      values((p_payload->>'id')::uuid,extensions.crypt(p_payload->>'phone_last4',extensions.gen_salt('bf')),now())
+      on conflict(participant_id) do update set phone_last4_hash=excluded.phone_last4_hash,updated_at=now();
+    end if;
   when 'vote_status' then update settings set fashion_vote_status=p_payload->>'status',updated_at=now() where id=1;
   when 'setting' then
     if p_payload->>'key'='reveal_fashion_during_vote' then update settings set reveal_fashion_during_vote=(p_payload->>'value')::boolean where id=1;
