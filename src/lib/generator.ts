@@ -14,6 +14,22 @@ export function recommendPlayers(participants: Participant[], stats: PlayerStat[
 
 export type DoublesType = 'open' | 'mixed' | 'male' | 'female'
 
+export function generateBalancedGames(participants: Participant[], gameCount: number, startMatchNumber = 1, type: DoublesType = 'open') {
+  const allActive = participants.filter(p => p.is_active)
+  const eligible = type === 'male' ? allActive.filter(p => p.gender === 'male') : type === 'female' ? allActive.filter(p => p.gender === 'female') : allActive
+  const gamesPerGroup = type === 'mixed'
+    ? Math.min(3, Math.floor(allActive.filter(p => p.gender === 'male').length / 2), Math.floor(allActive.filter(p => p.gender === 'female').length / 2))
+    : Math.min(3, Math.floor(eligible.length / 4))
+  if (gamesPerGroup < 1 || gameCount < 1) return []
+  const generated = generateBalancedRounds(participants, Math.ceil(gameCount / gamesPerGroup), startMatchNumber, type)
+  let remaining = gameCount, courtIndex = 0
+  return generated.map(round => {
+    const matches = round.matches.slice(0, remaining).map(match => ({ ...match, court: courtIndex++ % 3 + 1 }))
+    remaining -= matches.length
+    return { ...round, matches }
+  }).filter(round => round.matches.length > 0)
+}
+
 export function generateBalancedRounds(participants: Participant[], roundCount: number, startMatchNumber = 1, type: DoublesType = 'open') {
   const allActive = participants.filter(p => p.is_active)
   const active = type === 'male' ? allActive.filter(p => p.gender === 'male') : type === 'female' ? allActive.filter(p => p.gender === 'female') : allActive

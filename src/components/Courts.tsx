@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { Clock3, Minus, Plus } from 'lucide-react'
 import type { AppData, Match, Team } from '../types'
+import { courtLabel } from '../lib/courts'
 
 export default function Courts({ data, onScore, onStatus }: { data: AppData; onScore: (id:string, team:Team, delta:number)=>Promise<void>; onStatus:(id:string,status:Match['status'])=>Promise<void> }) {
   const [busy, setBusy] = useState<string|null>(null)
   const [selectedCourt, setSelectedCourt] = useState(1)
   const activeFor = (court: number) => data.matches.find(m => m.court_number === court && m.status === 'playing') ?? data.matches.find(m => m.court_number === court && m.status === 'waiting')
-  const roundFor = (match?: Match) => data.rounds.find(r => r.id === match?.round_id)?.round_number
   const score = async (match: Match, team: Team, delta: number) => { const key=`${match.id}${team}${delta}`; setBusy(key); try { await onScore(match.id,team,delta) } finally { setBusy(null) } }
   return <section className="page-section"><div className="section-title"><div><p className="eyebrow">COURTS</p><h2>현재 코트</h2></div><span className="status-pill"><i/> LIVE</span></div>
-    <div className="court-tabs" role="tablist" aria-label="코트 선택">{[1,2,3].map(court=>{const match=activeFor(court);return <button key={court} role="tab" aria-selected={selectedCourt===court} className={selectedCourt===court?'active':''} onClick={()=>setSelectedCourt(court)}><span className={match?.status==='playing'?'court-live playing':'court-live'}/><b>{court}</b>코트<small>ROUND {roundFor(match)??'-'}</small></button>})}</div>
-    <div className="court-grid">{[1,2,3].map(court => { const match=activeFor(court); return <article className={`court-card ${match?.status ?? 'empty'} ${selectedCourt===court?'selected':''}`} key={court} role="tabpanel" aria-label={`${court}코트`}>
-      <header><div className="court-number"><b>{court}</b><span>COURT</span></div>{match && <div className="match-meta"><small>ROUND {roundFor(match)??'-'}</small><strong>#{match.match_number} 경기</strong><span>{statusLabel(match.status)}</span></div>}</header>
+    <div className="court-tabs" role="tablist" aria-label="코트 선택">{[1,2,3].map(court=>{const match=activeFor(court);return <button key={court} role="tab" aria-selected={selectedCourt===court} className={selectedCourt===court?'active':''} onClick={()=>setSelectedCourt(court)}><span className={match?.status==='playing'?'court-live playing':'court-live'}/><b>{courtLabel(court)}</b>코트<small>{match?`GAME #${match.match_number}`:'대기 없음'}</small></button>})}</div>
+    <div className="court-grid">{[1,2,3].map(court => { const match=activeFor(court); return <article className={`court-card ${match?.status ?? 'empty'} ${selectedCourt===court?'selected':''}`} key={court} role="tabpanel" aria-label={`${courtLabel(court)}코트`}>
+      <header><div className="court-number"><b>{courtLabel(court)}</b><span>COURT</span></div>{match && <div className="match-meta"><small>NEXT GAME</small><strong>#{match.match_number} 경기</strong><span>{statusLabel(match.status)}</span></div>}</header>
       {!match ? <div className="empty-state">예정된 경기가 없습니다</div> : <>
         <div className="scoreboard">
           <TeamScore label="TEAM A" players={match.team_a.map(p=>p.name)} score={match.team_a_score} disabled={match.status!=='playing'} onChange={d=>score(match,'A',d)} busy={busy?.startsWith(`${match.id}A`)}/>

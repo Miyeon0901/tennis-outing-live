@@ -8,6 +8,7 @@ import Live from './components/Live'
 import Rankings from './components/Rankings'
 import Events from './components/Events'
 import Admin from './components/Admin'
+import { courtLabel } from './lib/courts'
 
 type Tab = 'courts' | 'schedule' | 'live' | 'rankings' | 'events' | 'admin'
 const tabs: Array<{ id: Tab; label: string; icon: typeof Radio }> = [
@@ -31,9 +32,9 @@ export default function App() {
   const awards = useMemo(() => awardLeaders(api.data), [api.data])
   const fair = useMemo(() => fairness(stats), [stats])
   const finished = api.data.matches.filter(m => m.status === 'finished').length
-  const courtRound = (court: number) => {
+  const courtGame = (court: number) => {
     const match = api.data.matches.find(m => m.court_number === court && m.status === 'playing') ?? api.data.matches.find(m => m.court_number === court && m.status === 'waiting')
-    return api.data.rounds.find(r => r.id === match?.round_id)?.round_number ?? '-'
+    return match?.match_number ?? '-'
   }
 
   const login = async () => {
@@ -79,7 +80,7 @@ export default function App() {
     {api.error && <div className="error-banner">연결 오류: {api.error}</div>}
     <main>
       <section className="summary-row">
-        <div className="court-round-summary"><small>코트별 현재 라운드</small><strong>{[1,2,3].map(c=><span key={c}>{c}코트 <b>R{courtRound(c)}</b></span>)}</strong></div>
+        <div className="court-round-summary"><small>코트별 현재 경기</small><strong>{[1,2,3].map(c=><span key={c}>{courtLabel(c)}코트 <b>#{courtGame(c)}</b></span>)}</strong></div>
         <div><small>경기 진행</small><strong>{finished} <em>/ {api.data.matches.length}</em></strong></div>
         <div><small>참여 편차</small><strong>{fair.spread}경기</strong></div>
       </section>

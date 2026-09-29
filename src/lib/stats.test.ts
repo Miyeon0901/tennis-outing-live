@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { demoData } from './demo'
 import { awardLeaders, fairness, playerStats } from './stats'
-import { generateBalancedRounds, recommendPlayers } from './generator'
+import { generateBalancedGames, generateBalancedRounds, recommendPlayers } from './generator'
 
 describe('statistics',()=>{
   it('does not count scheduled matches as completed participation',()=>{const stats=playerStats(demoData.participants,demoData.matches);expect(stats.find(s=>s.participant.id==='p1')?.completed).toBe(0)})
@@ -24,6 +24,13 @@ describe('statistics',()=>{
     const rounds=generateBalancedRounds(demoData.participants,3,1,'mixed')
     expect(rounds[0].matches).toHaveLength(3)
     rounds.flatMap(r=>r.matches).forEach(m=>[m.teamA,m.teamB].forEach(team=>expect(team.map(p=>p.gender).sort()).toEqual(['female','male'])))
+  })
+  it('creates the requested game count and assigns courts A-B-C in sequence',()=>{
+    const groups=generateBalancedGames(demoData.participants,4,1,'female')
+    const games=groups.flatMap(group=>group.matches)
+    expect(games).toHaveLength(4)
+    expect(games.map(game=>game.court)).toEqual([1,2,3,1])
+    expect(games.map(game=>game.matchNumber)).toEqual([1,2,3,4])
   })
   it('recommends non-playing players with fewer completed games first',()=>{
     const data=JSON.parse(JSON.stringify(demoData)) as typeof demoData; data.matches.forEach(m=>m.status='waiting'); const stats=playerStats(data.participants,data.matches); stats.forEach(s=>s.completed=3); stats[0].completed=5; stats[1].completed=1
