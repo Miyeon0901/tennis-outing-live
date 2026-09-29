@@ -167,7 +167,14 @@ begin if not verify_admin_pin(p_admin_token) then raise exception '관리자 PIN
     elsif p_payload->>'key'='allow_duplicate_awards' then update settings set allow_duplicate_awards=(p_payload->>'value')::boolean where id=1;
     elsif p_payload->>'key'='resilience_award_name' then update settings set resilience_award_name=left(p_payload->>'value',30) where id=1;
     else raise exception '변경할 수 없는 설정입니다.'; end if;
-  when 'reset_scores' then update matches set team_a_score=0,team_b_score=0,status='waiting',started_at=null,finished_at=null,updated_at=now(),updated_by=p_updated_by; delete from score_events;
+  when 'reset_scores' then
+    delete from fashion_votes;
+    delete from lucky_draws;
+    delete from score_events;
+    delete from match_players;
+    delete from matches;
+    delete from rounds;
+    update settings set current_round=1,fashion_vote_status='not_started',reveal_fashion_during_vote=false,updated_at=now() where id=1;
   when 'lucky_draw' then
     if coalesce(p_payload->>'pool_type','played')='all' then select id into draw_winner from participants where is_active order by gen_random_uuid() limit 1;
     else select participant_id into draw_winner from (select distinct mp.participant_id from match_players mp join matches m on m.id=mp.match_id join participants p on p.id=mp.participant_id where m.status='finished' and p.is_active) pool order by gen_random_uuid() limit 1; end if;

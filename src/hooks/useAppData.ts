@@ -88,7 +88,7 @@ export function useAppData(userName: string) {
     if (action === 'update_participant') return { ...prev, participants: prev.participants.map(p => p.id === payload.id ? { ...p, name: String(payload.name).trim(), gender: (payload.gender as AppData['participants'][number]['gender']) ?? p.gender } : p) }
     if (action === 'vote_status') return { ...prev, settings: { ...prev.settings, fashion_vote_status: payload.status as AppData['settings']['fashion_vote_status'] } }
     if (action === 'setting') return { ...prev, settings: { ...prev.settings, [String(payload.key)]: payload.value } }
-    if (action === 'reset_scores') return { ...prev, matches: prev.matches.map(m => ({ ...m, team_a_score: 0, team_b_score: 0, status: 'waiting', started_at: null, finished_at: null })), scoreEvents: [] }
+    if (action === 'reset_scores') return { ...prev, rounds: [], matches: [], scoreEvents: [], fashionVotes: [], luckyDraws: [], settings: { ...prev.settings, current_round: 1, fashion_vote_status: 'not_started', reveal_fashion_during_vote: false } }
     if (action === 'lucky_draw') { const pool = prev.participants.filter(p => prev.matches.some(m => m.status==='finished' && [...m.team_a,...m.team_b].some(x=>x.id===p.id))); const winner=pool[Math.floor(Math.random()*pool.length)]; return winner ? { ...prev, luckyDraws: [{ id: crypto.randomUUID(), winner_id: winner.id, pool_type: String(payload.pool_type), exclude_award_winners: Boolean(payload.exclude_award_winners), drawn_at: new Date().toISOString(), drawn_by: userName }, ...prev.luckyDraws] } : prev }
     if (action === 'create_match') {
       const ids = payload.players as string[], byId = (id: string) => prev.participants.find(p => p.id === id)!
