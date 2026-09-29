@@ -82,6 +82,12 @@ export function useAppData(userName: string) {
     const { error } = await supabase.rpc('admin_action', { p_action: action, p_payload: payload, p_admin_token: token, p_updated_by: userName })
     if (error) throw error
   }
+  const resetEventData = async (token: string) => {
+    if (!supabase) { await demoAdmin('reset_scores', {}); return }
+    const { error } = await supabase.rpc('reset_event_data', { p_admin_token: token, p_updated_by: userName })
+    if (error) throw error
+    await load()
+  }
   const demoAdmin = async (action: string, payload: Record<string, unknown>) => setData(prev => {
     if (action === 'add_participant') return { ...prev, participants: [...prev.participants, { id: crypto.randomUUID(), name: String(payload.name), gender: (payload.gender as AppData['participants'][number]['gender']) ?? 'unspecified', is_active: true }] }
     if (action === 'toggle_participant') return { ...prev, participants: prev.participants.map(p => p.id === payload.id ? { ...p, is_active: !p.is_active } : p) }
@@ -103,5 +109,5 @@ export function useAppData(userName: string) {
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, resetEventData, refresh: load }
 }

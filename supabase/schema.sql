@@ -98,6 +98,20 @@ begin if not verify_admin_pin(p_old_pin) then raise exception '관리자 PIN이 
   update admin_secrets set pin_hash=extensions.crypt(p_new_pin,extensions.gen_salt('bf')) where id=1; return true;
 end $$;
 
+create or replace function public.reset_event_data(p_admin_token text,p_updated_by text) returns jsonb
+language plpgsql security definer set search_path=public as $$
+begin
+  if not verify_admin_pin(p_admin_token) then raise exception '관리자 PIN이 올바르지 않습니다.'; end if;
+  delete from fashion_votes;
+  delete from lucky_draws;
+  delete from score_events;
+  delete from match_players;
+  delete from matches;
+  delete from rounds;
+  update settings set current_round=1,fashion_vote_status='not_started',reveal_fashion_during_vote=false,updated_at=now() where id=1;
+  return jsonb_build_object('ok',true,'updated_by',p_updated_by);
+end $$;
+
 -- 한 행을 잠근 상태에서 현재 값에 delta를 더하므로 동시에 +1을 눌러도 입력이 유실되지 않습니다.
 create or replace function public.change_score(p_match_id uuid,p_team text,p_delta integer,p_created_by text) returns public.matches
 language plpgsql security definer set search_path=public as $$ declare result public.matches;
@@ -206,6 +220,8 @@ grant execute on function public.set_match_status(uuid,text,text,text) to anon,a
 grant execute on function public.cast_fashion_vote(uuid,uuid) to anon,authenticated;
 grant execute on function public.admin_action(text,jsonb,text,text) to anon,authenticated;
 grant execute on function public.set_admin_pin(text,text) to anon,authenticated;
+revoke all on function public.reset_event_data(text,text) from public;
+grant execute on function public.reset_event_data(text,text) to anon,authenticated;
 
 do $$ begin alter publication supabase_realtime add table public.participants,public.rounds,public.matches,public.match_players,public.score_events,public.settings,public.fashion_votes,public.lucky_draws;
 exception when duplicate_object then null; end $$;
