@@ -25,6 +25,10 @@ export default function App() {
   const awards = useMemo(() => awardLeaders(api.data), [api.data])
   const fair = useMemo(() => fairness(stats), [stats])
   const finished = api.data.matches.filter(m => m.status === 'finished').length
+  const courtRound = (court: number) => {
+    const match = api.data.matches.find(m => m.court_number === court && m.status === 'playing') ?? api.data.matches.find(m => m.court_number === court && m.status === 'waiting')
+    return api.data.rounds.find(r => r.id === match?.round_id)?.round_number ?? '-'
+  }
 
   const chooseName = (value: string) => { const clean = value.trim(); if (!clean) return; localStorage.setItem('tennis-user-name', clean); setName(clean) }
   if (api.loading) return <div className="splash"><div className="ball-loader">🎾</div><p>코트 현황을 불러오는 중…</p></div>
@@ -42,7 +46,7 @@ export default function App() {
     {api.error && <div className="error-banner">연결 오류: {api.error}</div>}
     <main>
       <section className="summary-row">
-        <div><small>현재 라운드</small><strong>ROUND {api.data.settings.current_round}</strong></div>
+        <div className="court-round-summary"><small>코트별 현재 라운드</small><strong>{[1,2,3].map(c=><span key={c}>{c}코트 <b>R{courtRound(c)}</b></span>)}</strong></div>
         <div><small>경기 진행</small><strong>{finished} <em>/ {api.data.matches.length}</em></strong></div>
         <div><small>참여 편차</small><strong>{fair.spread}경기</strong></div>
       </section>
