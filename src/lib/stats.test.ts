@@ -20,6 +20,11 @@ describe('statistics',()=>{
     const counts=demoData.participants.map(p=>rounds.filter(r=>r.matches.some(m=>[...m.teamA,...m.teamB].some(x=>x.id===p.id))).length)
     expect(Math.max(...counts)-Math.min(...counts)).toBeLessThanOrEqual(1)
   })
+  it('creates mixed doubles with one man and one woman on every team',()=>{
+    const rounds=generateBalancedRounds(demoData.participants,3,1,'mixed')
+    expect(rounds[0].matches).toHaveLength(3)
+    rounds.flatMap(r=>r.matches).forEach(m=>[m.teamA,m.teamB].forEach(team=>expect(team.map(p=>p.gender).sort()).toEqual(['female','male'])))
+  })
   it('recommends non-playing players with fewer completed games first',()=>{
     const data=JSON.parse(JSON.stringify(demoData)) as typeof demoData; data.matches.forEach(m=>m.status='waiting'); const stats=playerStats(data.participants,data.matches); stats.forEach(s=>s.completed=3); stats[0].completed=5; stats[1].completed=1
     const picks=recommendPlayers(data.participants,stats,data.matches,4)

@@ -72,8 +72,9 @@ export function useAppData(userName: string) {
     if (error) throw error
   }
   const demoAdmin = async (action: string, payload: Record<string, unknown>) => setData(prev => {
-    if (action === 'add_participant') return { ...prev, participants: [...prev.participants, { id: crypto.randomUUID(), name: String(payload.name), is_active: true }] }
+    if (action === 'add_participant') return { ...prev, participants: [...prev.participants, { id: crypto.randomUUID(), name: String(payload.name), gender: (payload.gender as AppData['participants'][number]['gender']) ?? 'unspecified', is_active: true }] }
     if (action === 'toggle_participant') return { ...prev, participants: prev.participants.map(p => p.id === payload.id ? { ...p, is_active: !p.is_active } : p) }
+    if (action === 'update_participant') return { ...prev, participants: prev.participants.map(p => p.id === payload.id ? { ...p, name: String(payload.name).trim(), gender: (payload.gender as AppData['participants'][number]['gender']) ?? p.gender } : p) }
     if (action === 'vote_status') return { ...prev, settings: { ...prev.settings, fashion_vote_status: payload.status as AppData['settings']['fashion_vote_status'] } }
     if (action === 'setting') return { ...prev, settings: { ...prev.settings, [String(payload.key)]: payload.value } }
     if (action === 'reset_scores') return { ...prev, matches: prev.matches.map(m => ({ ...m, team_a_score: 0, team_b_score: 0, status: 'waiting', started_at: null, finished_at: null })), scoreEvents: [] }

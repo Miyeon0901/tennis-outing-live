@@ -4,8 +4,11 @@ create extension if not exists pgcrypto;
 
 create table if not exists public.participants (
   id uuid primary key default gen_random_uuid(), name text not null unique check (char_length(name) between 1 and 30),
+  gender text not null default 'unspecified' check(gender in ('male','female','unspecified')),
   is_active boolean not null default true, created_at timestamptz not null default now()
 );
+alter table public.participants add column if not exists gender text not null default 'unspecified';
+do $$ begin alter table public.participants add constraint participants_gender_check check(gender in ('male','female','unspecified')); exception when duplicate_object then null; end $$;
 create table if not exists public.rounds (
   id uuid primary key default gen_random_uuid(), round_number integer not null unique check (round_number > 0),
   label text not null, status text not null default 'waiting' check (status in ('waiting','playing','finished')),
@@ -126,9 +129,9 @@ create or replace function public.admin_action(p_action text,p_payload jsonb,p_a
 language plpgsql security definer set search_path=public as $$ declare new_match_id uuid; rid uuid; item jsonb; game jsonb; draw_winner uuid;
 begin if not verify_admin_pin(p_admin_token) then raise exception '관리자 PIN이 올바르지 않습니다.'; end if;
  case p_action
-  when 'add_participant' then insert into participants(name) values(trim(p_payload->>'name'));
+  when 'add_participant' then insert into participants(name,gender) values(trim(p_payload->>'name'),coalesce(p_payload->>'gender','unspecified'));
   when 'toggle_participant' then update participants set is_active=not is_active where id=(p_payload->>'id')::uuid;
-  when 'update_participant' then update participants set name=trim(p_payload->>'name') where id=(p_payload->>'id')::uuid;
+  when 'update_participant' then update participants set name=trim(p_payload->>'name'),gender=coalesce(p_payload->>'gender',gender) where id=(p_payload->>'id')::uuid;
   when 'vote_status' then update settings set fashion_vote_status=p_payload->>'status',updated_at=now() where id=1;
   when 'setting' then
     if p_payload->>'key'='reveal_fashion_during_vote' then update settings set reveal_fashion_during_vote=(p_payload->>'value')::boolean where id=1;

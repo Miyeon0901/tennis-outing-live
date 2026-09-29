@@ -1,7 +1,8 @@
 export type MatchStatus = 'waiting' | 'playing' | 'finished' | 'cancelled'
 export type Team = 'A' | 'B'
 
-export interface Participant { id: string; name: string; is_active: boolean; created_at?: string }
+export type Gender = 'male' | 'female' | 'unspecified'
+export interface Participant { id: string; name: string; gender: Gender; is_active: boolean; created_at?: string }
 export interface Round { id: string; round_number: number; label: string; status: 'waiting' | 'playing' | 'finished'; rest_participant_ids: string[] }
 export interface Match {
   id: string; match_number: number; court_number: number; round_id: string | null; order_index: number

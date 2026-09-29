@@ -1,6 +1,6 @@
 import type { AppData, Match, Participant, Round } from '../types'
 
-const participants: Participant[] = Array.from({ length: 14 }, (_, i) => ({ id: `p${i + 1}`, name: `참가자${i + 1}`, is_active: true }))
+const participants: Participant[] = Array.from({ length: 14 }, (_, i) => ({ id: `p${i + 1}`, name: `참가자${i + 1}`, gender: i % 2 === 0 ? 'male' : 'female', is_active: true }))
 const rounds: Round[] = [1, 2].map(n => ({ id: `r${n}`, round_number: n, label: `ROUND ${n}`, status: n === 1 ? 'playing' : 'waiting', rest_participant_ids: n === 1 ? ['p13', 'p14'] : ['p11', 'p12'] }))
 function match(id: number, court: number, round: number, players: number[]): Match {
   return { id: `m${id}`, match_number: id, court_number: court, round_id: `r${round}`, order_index: round,
