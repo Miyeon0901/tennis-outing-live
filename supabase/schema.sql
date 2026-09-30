@@ -102,12 +102,12 @@ create or replace function public.reset_event_data(p_admin_token text,p_updated_
 language plpgsql security definer set search_path=public as $$
 begin
   if not verify_admin_pin(p_admin_token) then raise exception '관리자 PIN이 올바르지 않습니다.'; end if;
-  delete from fashion_votes;
-  delete from lucky_draws;
-  delete from score_events;
-  delete from match_players;
-  delete from matches;
-  delete from rounds;
+  delete from fashion_votes where voter_id is not null;
+  delete from lucky_draws where id is not null;
+  delete from score_events where id is not null;
+  delete from match_players where match_id is not null;
+  delete from matches where id is not null;
+  delete from rounds where id is not null;
   update settings set current_round=1,fashion_vote_status='not_started',reveal_fashion_during_vote=false,updated_at=now() where id=1;
   return jsonb_build_object('ok',true,'updated_by',p_updated_by);
 end $$;
@@ -182,12 +182,12 @@ begin if not verify_admin_pin(p_admin_token) then raise exception '관리자 PIN
     elsif p_payload->>'key'='resilience_award_name' then update settings set resilience_award_name=left(p_payload->>'value',30) where id=1;
     else raise exception '변경할 수 없는 설정입니다.'; end if;
   when 'reset_scores' then
-    delete from fashion_votes;
-    delete from lucky_draws;
-    delete from score_events;
-    delete from match_players;
-    delete from matches;
-    delete from rounds;
+    delete from fashion_votes where voter_id is not null;
+    delete from lucky_draws where id is not null;
+    delete from score_events where id is not null;
+    delete from match_players where match_id is not null;
+    delete from matches where id is not null;
+    delete from rounds where id is not null;
     update settings set current_round=1,fashion_vote_status='not_started',reveal_fashion_during_vote=false,updated_at=now() where id=1;
   when 'lucky_draw' then
     if coalesce(p_payload->>'pool_type','played')='all' then select id into draw_winner from participants where is_active order by gen_random_uuid() limit 1;
