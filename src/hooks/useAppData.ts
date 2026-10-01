@@ -56,9 +56,9 @@ export function useAppData(userName: string) {
       if (error) throw error
     } else setData(prev => ({ ...prev, matches: prev.matches.map(m => m.id === matchId ? { ...m, status, started_at: status === 'playing' ? (m.started_at ?? new Date().toISOString()) : m.started_at, finished_at: status === 'finished' ? new Date().toISOString() : null, updated_at: new Date().toISOString(), updated_by: userName } : m) }))
   }
-  const vote = async (voterId: string, candidateId: string) => {
-    if (supabase) { const { error } = await supabase.rpc('cast_fashion_vote', { p_voter_id: voterId, p_candidate_id: candidateId }); if (error) throw error }
-    else setData(prev => ({ ...prev, fashionVotes: [...prev.fashionVotes.filter(v => v.voter_id !== voterId), { voter_id: voterId, candidate_id: candidateId }] }))
+  const vote = async (voterId: string, candidateIds: string[]) => {
+    if (supabase) { const { error } = await supabase.rpc('set_fashion_votes', { p_voter_id: voterId, p_candidate_ids: candidateIds }); if (error) throw new Error(error.message) }
+    else setData(prev => ({ ...prev, fashionVotes: [...prev.fashionVotes.filter(v => v.voter_id !== voterId), ...candidateIds.map(candidate_id => ({ voter_id: voterId, candidate_id }))] }))
   }
   const verifyAdmin = async (pin: string) => {
     if (!supabase) return pin === '1121'

@@ -46,10 +46,13 @@ create table if not exists public.participant_credentials (
   phone_last4_hash text not null, updated_at timestamptz not null default now()
 );
 create table if not exists public.fashion_votes (
-  voter_id uuid primary key references public.participants(id) on delete cascade,
+  voter_id uuid references public.participants(id) on delete cascade,
   candidate_id uuid not null references public.participants(id) on delete cascade,
-  created_at timestamptz not null default now(), updated_at timestamptz not null default now(), check(voter_id<>candidate_id)
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(), check(voter_id<>candidate_id),
+  primary key(voter_id,candidate_id)
 );
+alter table public.fashion_votes drop constraint if exists fashion_votes_pkey;
+alter table public.fashion_votes add constraint fashion_votes_pkey primary key(voter_id,candidate_id);
 create table if not exists public.lucky_draws (
   id uuid primary key default gen_random_uuid(), winner_id uuid not null references public.participants(id),
   pool_type text not null default 'played', exclude_award_winners boolean not null default false,
@@ -154,8 +157,23 @@ create or replace function public.cast_fashion_vote(p_voter_id uuid,p_candidate_
 begin if p_voter_id=p_candidate_id then raise exception '자기 자신에게는 투표할 수 없습니다.'; end if;
  if (select fashion_vote_status from settings where id=1)<>'open' then raise exception '현재 투표 중이 아닙니다.'; end if;
  if not exists(select 1 from participants where id=p_voter_id and is_active) or not exists(select 1 from participants where id=p_candidate_id and is_active) then raise exception '활성 참가자만 투표할 수 있습니다.'; end if;
- insert into fashion_votes(voter_id,candidate_id) values(p_voter_id,p_candidate_id)
- on conflict(voter_id) do update set candidate_id=excluded.candidate_id,updated_at=now();
+ if exists(select 1 from fashion_votes where voter_id=p_voter_id and candidate_id=p_candidate_id) then
+   delete from fashion_votes where voter_id=p_voter_id and candidate_id=p_candidate_id;
+ elsif (select count(*) from fashion_votes where voter_id=p_voter_id)>=2 then raise exception '최대 2명까지 투표할 수 있습니다.';
+ else insert into fashion_votes(voter_id,candidate_id) values(p_voter_id,p_candidate_id); end if;
+end $$;
+
+create or replace function public.set_fashion_votes(p_voter_id uuid,p_candidate_ids uuid[]) returns void
+language plpgsql security definer set search_path=public as $$
+begin
+ if (select fashion_vote_status from settings where id=1)<>'open' then raise exception '현재 투표 중이 아닙니다.'; end if;
+ if not exists(select 1 from participants where id=p_voter_id and is_active) then raise exception '활성 참가자만 투표할 수 있습니다.'; end if;
+ if coalesce(cardinality(p_candidate_ids),0)>2 then raise exception '최대 2명까지 투표할 수 있습니다.'; end if;
+ if coalesce((select count(distinct id) from unnest(p_candidate_ids) id),0)<>coalesce(cardinality(p_candidate_ids),0) then raise exception '같은 사람을 중복 선택할 수 없습니다.'; end if;
+ if p_voter_id=any(coalesce(p_candidate_ids,'{}'::uuid[])) then raise exception '자기 자신에게는 투표할 수 없습니다.'; end if;
+ if exists(select 1 from unnest(coalesce(p_candidate_ids,'{}'::uuid[])) id where not exists(select 1 from participants p where p.id=id and p.is_active)) then raise exception '활성 참가자만 투표할 수 있습니다.'; end if;
+ delete from fashion_votes where voter_id=p_voter_id;
+ insert into fashion_votes(voter_id,candidate_id) select p_voter_id,id from unnest(coalesce(p_candidate_ids,'{}'::uuid[])) id;
 end $$;
 
 create or replace function public.admin_action(p_action text,p_payload jsonb,p_admin_token text,p_updated_by text) returns jsonb
@@ -218,6 +236,8 @@ end $$;
 grant execute on function public.change_score(uuid,text,integer,text) to anon,authenticated;
 grant execute on function public.set_match_status(uuid,text,text,text) to anon,authenticated;
 grant execute on function public.cast_fashion_vote(uuid,uuid) to anon,authenticated;
+revoke all on function public.set_fashion_votes(uuid,uuid[]) from public;
+grant execute on function public.set_fashion_votes(uuid,uuid[]) to anon,authenticated;
 grant execute on function public.admin_action(text,jsonb,text,text) to anon,authenticated;
 grant execute on function public.set_admin_pin(text,text) to anon,authenticated;
 revoke all on function public.reset_event_data(text,text) from public;
