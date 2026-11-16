@@ -38,3 +38,11 @@
 .lucky-draw-dialog.result .lucky-draw-name{color:var(--gold);animation:lucky-reveal .5s ease-out}
 @keyframes lucky-reveal{from{transform:scale(.8);opacity:.3}to{transform:scale(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){.lucky-draw-dialog.result .lucky-draw-name{animation:none}}
+.match-score{display:grid;justify-items:center;gap:4px}.match-score .small{padding:4px 8px;font-size:10px}
+.match-result-dialog{width:min(100%,500px);max-height:calc(100dvh - 36px);overflow:auto;border-radius:18px;background:#fff;padding:26px}
+.match-result-dialog h2{font-size:21px;margin:8px 0 12px}.match-result-dialog p:not(.eyebrow){font-size:12px;color:var(--muted);line-height:1.7}
+.match-result-inputs{display:grid;grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr);gap:12px;align-items:center;margin:22px 0}
+.match-result-inputs label{display:flex;flex-direction:column;gap:8px;min-width:0}.match-result-inputs label>span{font-size:12px;min-height:36px;overflow-wrap:anywhere}
+.match-result-inputs input{width:100%;min-width:0;text-align:center;border:1px solid var(--line);border-radius:10px;padding:12px 4px;font-size:30px;font-weight:800}
+.match-result-inputs>strong{text-align:center;font-size:26px}.match-result-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.match-result-dialog .match-result-error{color:#a52d1d!important}.match-result-dialog button:disabled{opacity:.5;cursor:default}

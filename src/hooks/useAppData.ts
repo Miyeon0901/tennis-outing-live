@@ -104,6 +104,28 @@ export function useAppData(userName: string) {
     if (error) throw new Error([error.message,error.details,error.hint,error.code].filter(Boolean).join(' · '))
     await load()
   }
+  const updateMatchResult = async (match: Match, scoreA: number, scoreB: number, token: string) => {
+    if (![scoreA,scoreB].every(score=>Number.isInteger(score)&&score>=0&&score<=2147483647)) throw new Error('점수는 0 이상의 정수여야 합니다.')
+    if (supabase) {
+      const {data:updated,error}=await supabase.rpc('update_match_result',{
+        p_match_id:match.id,p_team_a_score:scoreA,p_team_b_score:scoreB,
+        p_expected_updated_at:match.updated_at,p_admin_token:token,p_updated_by:userName,
+      })
+      if(error)throw new Error(error.message)
+      setData(prev=>({...prev,matches:prev.matches.map(m=>m.id===match.id?{...m,...updated}:m)}))
+      await load()
+    } else {
+      if(!await verifyAdmin(token))throw new Error('관리자 PIN이 올바르지 않습니다.')
+      const current=data.matches.find(m=>m.id===match.id)
+      if(!current)throw new Error('이미 삭제되었거나 존재하지 않는 경기입니다.')
+      if(current.status!=='finished')throw new Error('종료된 경기만 결과를 수정할 수 있습니다.')
+      if(current.updated_at!==match.updated_at)throw new Error('다른 변경이 반영된 경기입니다. 창을 닫고 최신 결과를 확인한 뒤 다시 수정해주세요.')
+      const now=new Date(Math.max(Date.now(),Date.parse(current.updated_at)+1)).toISOString()
+      const events=([{team:'A',delta:scoreA-current.team_a_score},{team:'B',delta:scoreB-current.team_b_score}] as const)
+        .filter(e=>e.delta!==0).map(e=>({...e,id:crypto.randomUUID(),match_id:match.id,created_at:now,created_by:userName}))
+      setData(prev=>({...prev,matches:prev.matches.map(m=>m.id===match.id?{...m,team_a_score:scoreA,team_b_score:scoreB,updated_at:now,updated_by:userName}:m),scoreEvents:[...events,...prev.scoreEvents]}))
+    }
+  }
   const deleteMatch = async (matchId: string, token: string) => {
     if (supabase) {
       const { error } = await supabase.rpc('delete_match', { p_match_id: matchId, p_admin_token: token })
@@ -142,5 +164,5 @@ export function useAppData(userName: string) {
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, deleteMatch, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, updateMatchResult, deleteMatch, refresh: load }
 }
