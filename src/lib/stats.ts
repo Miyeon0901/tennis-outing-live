@@ -1,5 +1,14 @@
 import type { AppData, Match, Participant, PlayerStat } from '../types'
 
+function doublesCategory(match: Match): keyof PlayerStat['doublesParticipation'] {
+  const teams = [match.team_a, match.team_b]
+  if (teams.some(team => team.length !== 2)) return 'unclassified'
+  const players = teams.flat()
+  if (players.every(p => p.gender === 'male') || players.every(p => p.gender === 'female')) return 'same'
+  if (teams.every(team => team.some(p => p.gender === 'male') && team.some(p => p.gender === 'female'))) return 'mixed'
+  return 'unclassified'
+}
+
 export function playerStats(participants: Participant[], matches: Match[]): PlayerStat[] {
   return participants.filter(p => p.is_active).map(participant => {
     const mine = matches.filter(m => [...m.team_a, ...m.team_b].some(p => p.id === participant.id))
@@ -18,8 +27,20 @@ export function playerStats(participants: Participant[], matches: Match[]): Play
     const lastMatch = finishedTimes[finishedTimes.length - 1] ?? null
     const playing = mine.filter(m => m.status === 'playing').length
     const scheduled = mine.filter(m => m.status === 'waiting').length
+    const doublesParticipation: PlayerStat['doublesParticipation'] = {
+      same: { completed: 0, playing: 0, scheduled: 0 },
+      mixed: { completed: 0, playing: 0, scheduled: 0 },
+      unclassified: { completed: 0, playing: 0, scheduled: 0 },
+    }
+    mine.forEach(match => {
+      if (match.status === 'cancelled') return
+      const counts = doublesParticipation[doublesCategory(match)]
+      if (match.status === 'finished') counts.completed += 1
+      else if (match.status === 'playing') counts.playing += 1
+      else if (match.status === 'waiting') counts.scheduled += 1
+    })
     return {
-      participant, scheduled, playing, completed: finished.length,
+      participant, scheduled, playing, completed: finished.length, doublesParticipation,
       totalParticipation: finished.length + playing, lastMatchAt: lastMatch,
       isResting: playing === 0, wins, losses, draws, scored, conceded,
       difference: scored - conceded, winRate: finished.length ? wins / finished.length * 100 : 0,

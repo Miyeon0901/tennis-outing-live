@@ -18,8 +18,10 @@ export interface Settings {
 }
 export interface FashionVote { voter_id: string; candidate_id: string; created_at?: string }
 export interface LuckyDraw { id: string; winner_id: string; pool_type: string; exclude_award_winners: boolean; drawn_at: string; drawn_by: string }
+export interface ParticipationCounts { completed: number; playing: number; scheduled: number }
 export interface PlayerStat {
   participant: Participant; scheduled: number; playing: number; completed: number; totalParticipation: number
+  doublesParticipation: Record<'same' | 'mixed' | 'unclassified', ParticipationCounts>
   lastMatchAt: string | null; isResting: boolean; wins: number; losses: number; draws: number
   scored: number; conceded: number; difference: number; winRate: number
 }

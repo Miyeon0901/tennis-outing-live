@@ -10,6 +10,17 @@ export default function Schedule({data,stats,fairness:f}:{data:AppData;stats:Pla
       <div className="round-matches">{data.matches.filter(m=>m.court_number===court&&m.status!=='cancelled').sort((a,b)=>a.match_number-b.match_number).map(m=><div key={m.id}><b>#{m.match_number}</b><span>{m.team_a.map(p=>p.name).join(' + ')}</span><em>VS</em><span>{m.team_b.map(p=>p.name).join(' + ')}</span></div>)}</div>
       {!data.matches.some(m=>m.court_number===court&&m.status!=='cancelled')&&<footer>예정된 경기가 없습니다.</footer>}
     </article>)}</div>
-    <h3 className="subheading">실제 경기 참여 현황</h3><div className="participation-list">{[...stats].sort((a,b)=>a.completed-b.completed).map(s=><div key={s.participant.id}><span>{s.participant.name}</span><div className="bar"><i style={{width:`${Math.max(4,s.completed/Math.max(1,f.max)*100)}%`}}/></div><b>{s.completed}</b><small>완료 {s.completed} / 진행 {s.playing} / 예정 {s.scheduled}</small></div>)}</div>
+    <h3 className="subheading">실제 경기 참여 현황</h3><div className="participation-list">{[...stats].sort((a,b)=>a.completed-b.completed).map(s=><div key={s.participant.id}>
+      <span>{s.participant.name}</span>
+      <div className="bar"><i style={{width:`${Math.max(4,s.completed/Math.max(1,f.max)*100)}%`}}/></div>
+      <b aria-label={`총 완료 ${s.completed}경기`}>{s.completed}</b>
+      <div className="participation-types">
+        {(['same','mixed','unclassified'] as const).map(type=>{
+          const counts=s.doublesParticipation[type]
+          if(type==='unclassified'&&!Object.values(counts).some(Boolean))return null
+          return <small key={type}><strong>{type==='same'?'동성복식':type==='mixed'?'혼성복식':'미분류'}</strong><span>완료 {counts.completed} / 진행 {counts.playing} / 예정 {counts.scheduled}</span></small>
+        })}
+      </div>
+    </div>)}</div>
   </section>
 }

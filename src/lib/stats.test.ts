@@ -2,6 +2,38 @@ import { describe, expect, it } from 'vitest'
 import { demoData } from './demo'
 import { awardLeaders, fairness, playerStats } from './stats'
 import { generateBalancedGames, generateBalancedRounds, recommendPlayers } from './generator'
+import type { Gender, Match, MatchStatus, Participant } from '../types'
+
+describe('doubles participation',()=>{
+  const player: Participant = { id: 'player', name: '참가자', gender: 'male', is_active: true }
+  const makeMatch = (genders: Gender[], status: MatchStatus): Match => {
+    const players = genders.map((gender,i)=>({...player,id:i===0?player.id:`other-${i}`,gender}))
+    return {...demoData.matches[0],status,team_a:players.slice(0,2),team_b:players.slice(2)}
+  }
+
+  it.each([
+    ['same',['male','male','male','male']],
+    ['same',['female','female','female','female']],
+    ['mixed',['male','female','female','male']],
+    ['unclassified',['male','male','female','female']],
+    ['unclassified',['male','unspecified','male','female']],
+    ['unclassified',['male','female','male']],
+  ] as const)('counts %s doubles by status for %j',(category,genders)=>{
+    const matches = (['finished','playing','waiting','cancelled'] as const).map(status=>makeMatch([...genders],status))
+    const stat = playerStats([player],matches)[0]
+    expect(stat.doublesParticipation[category]).toEqual({completed:1,playing:1,scheduled:1})
+    Object.entries(stat.doublesParticipation).filter(([key])=>key!==category).forEach(([,counts])=>{
+      expect(counts).toEqual({completed:0,playing:0,scheduled:0})
+    })
+    expect([stat.completed,stat.playing,stat.scheduled]).toEqual([1,1,1])
+  })
+
+  it('keeps unrelated matches out of a player’s counts',()=>{
+    const match = makeMatch(['male','female','male','female'],'finished')
+    const stat = playerStats([{...player,id:'absent'}],[match])[0]
+    expect(stat.doublesParticipation.mixed.completed).toBe(0)
+  })
+})
 
 describe('statistics',()=>{
   it('does not count scheduled matches as completed participation',()=>{const stats=playerStats(demoData.participants,demoData.matches);expect(stats.find(s=>s.participant.id==='p1')?.completed).toBe(0)})
