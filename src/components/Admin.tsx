@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Check, LockKeyhole, Pencil, RefreshCcw, Settings2, UserPlus, Users, X } from 'lucide-react'
-import type { Gender, Participant, PlayerStat } from '../types'
+import type { Gender, Match, Participant, PlayerStat } from '../types'
 import { generateBalancedGames, type DoublesType } from '../lib/generator'
 import { courtLabel } from '../lib/courts'
 
@@ -9,6 +9,12 @@ export default function Admin({api,stats}:{api:Api;stats:PlayerStat[]}){
   const [pin,setPin]=useState(''); const [token,setToken]=useState(''); const [msg,setMsg]=useState(''); const [newName,setNewName]=useState(''); const [newPhoneLast4,setNewPhoneLast4]=useState(''); const [drawing,setDrawing]=useState(false); const [resetting,setResetting]=useState(false); const [confirmReset,setConfirmReset]=useState(false); const [resetMsg,setResetMsg]=useState('')
   const [newGender,setNewGender]=useState<Gender>('unspecified'); const [doublesType,setDoublesType]=useState<DoublesType>('open')
   const [gameCount,setGameCount]=useState(12); const [court,setCourt]=useState(1); const [players,setPlayers]=useState<string[]>(['','','',''])
+  const [deletingMatch,setDeletingMatch]=useState<string|null>(null)
+  const deleteMatch=async(match:Match)=>{
+    if(!confirm(`#${match.match_number} ${courtLabel(match.court_number)}코트 경기를 삭제할까요?\n${match.team_a.map(p=>p.name).join(' + ')} vs ${match.team_b.map(p=>p.name).join(' + ')}\n이 경기의 점수와 참여 기록도 삭제되며 되돌릴 수 없습니다.`))return
+    setDeletingMatch(match.id)
+    try{await api.deleteMatch(match.id,token);setMsg(`#${match.match_number} 경기를 삭제했습니다.`)}catch(e){setMsg(`경기 삭제 실패: ${message(e)}`)}finally{setDeletingMatch(null)}
+  }
   const votes=api.data.fashionVotes.length, eligible=api.data.participants.filter(p=>p.is_active).length, voters=new Set(api.data.fashionVotes.map(v=>v.voter_id)).size
   const login=async()=>{try{if(await api.verifyAdmin(pin)){setToken(pin);setMsg('관리자 모드가 열렸습니다.')}else setMsg('PIN이 올바르지 않습니다.')}catch(e){setMsg(message(e))}}
   const run=async(action:string,payload:Record<string,unknown>={})=>{try{await api.admin(action,payload,token);setMsg('저장했습니다.')}catch(e){setMsg(message(e))}}
@@ -26,7 +32,7 @@ export default function Admin({api,stats}:{api:Api;stats:PlayerStat[]}){
       <AdminPanel icon={<Settings2/>} title="대진 자동 생성"><label>복식 유형<select value={doublesType} onChange={e=>setDoublesType(e.target.value as DoublesType)}><option value="open">자유 복식</option><option value="mixed">혼합복식</option><option value="male">남자복식</option><option value="female">여자복식</option></select></label><label>총 게임 수</label><div className="inline-form"><input type="number" min="1" max="60" value={gameCount} onChange={e=>setGameCount(Math.max(1,Number(e.target.value)))}/><button type="button" className="primary" onClick={generate}>균형 대진 생성</button></div><p>생성된 게임은 A → B → C 코트 순서로 배정됩니다. 혼복은 팀마다 남성 1명·여성 1명으로 구성합니다.</p></AdminPanel>
       <AdminPanel icon={<Settings2/>} title="경기 수동 추가"><label>코트<select value={court} onChange={e=>setCourt(Number(e.target.value))}><option value="1">A코트</option><option value="2">B코트</option><option value="3">C코트</option></select></label><div className="player-selects">{players.map((value,i)=><select key={i} value={value} onChange={e=>setPlayers(x=>x.map((v,j)=>j===i?e.target.value:v))}><option value="">{i<2?'팀 A':'팀 B'} 선수 {i%2+1}</option>{api.data.participants.filter(p=>p.is_active).map(p=><option value={p.id} key={p.id}>{p.name} ({genderLabel(p.gender)})</option>)}</select>)}</div><button className="primary full" onClick={createMatch}>대기 경기 추가</button></AdminPanel>
     </div>
-    <AdminPanel icon={<Settings2/>} title="경기 상태 및 점수"><div className="match-admin">{api.data.matches.map(m=><div key={m.id}><span><b>#{m.match_number}</b> {courtLabel(m.court_number)}코트 · {m.team_a.map(p=>p.name).join('+')} vs {m.team_b.map(p=>p.name).join('+')}</span><em>{m.team_a_score}:{m.team_b_score}</em><select value={m.status} onChange={e=>api.setStatus(m.id,e.target.value as typeof m.status,token)}><option value="waiting">대기</option><option value="playing">진행중</option><option value="finished">종료</option><option value="cancelled">취소</option></select></div>)}</div></AdminPanel>
+    <AdminPanel icon={<Settings2/>} title="경기 상태 및 점수"><div className="match-admin">{api.data.matches.map(m=><div key={m.id}><span><b>#{m.match_number}</b> {courtLabel(m.court_number)}코트 · {m.team_a.map(p=>p.name).join('+')} vs {m.team_b.map(p=>p.name).join('+')}</span><em>{m.team_a_score}:{m.team_b_score}</em><select value={m.status} disabled={deletingMatch!==null} onChange={e=>api.setStatus(m.id,e.target.value as typeof m.status,token)}><option value="waiting">대기</option><option value="playing">진행중</option><option value="finished">종료</option><option value="cancelled">취소</option></select><button type="button" className="danger small" aria-label={`매치 #${m.match_number} 삭제`} disabled={deletingMatch!==null} onClick={()=>void deleteMatch(m)}>{deletingMatch===m.id?'삭제 중…':'삭제'}</button></div>)}</div></AdminPanel>
   </section>
 }
 function AdminPanel({icon,title,children}:{icon:React.ReactNode;title:string;children:React.ReactNode}){return <article className="admin-panel"><header>{icon}<h3>{title}</h3></header>{children}</article>}

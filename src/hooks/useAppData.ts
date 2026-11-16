@@ -88,6 +88,23 @@ export function useAppData(userName: string) {
     if (error) throw new Error([error.message,error.details,error.hint,error.code].filter(Boolean).join(' · '))
     await load()
   }
+  const deleteMatch = async (matchId: string, token: string) => {
+    if (supabase) {
+      const { error } = await supabase.rpc('delete_match', { p_match_id: matchId, p_admin_token: token })
+      if (error) throw new Error(error.message)
+      await load()
+    } else {
+      if (!await verifyAdmin(token)) throw new Error('관리자 PIN이 올바르지 않습니다.')
+      setData(prev => {
+        const removed = prev.matches.find(m => m.id === matchId)
+        const matches = prev.matches.filter(m => m.id !== matchId)
+        return { ...prev, matches,
+          scoreEvents: prev.scoreEvents.filter(e => e.match_id !== matchId),
+          rounds: prev.rounds.filter(r => r.id !== removed?.round_id || matches.some(m => m.round_id === r.id)),
+        }
+      })
+    }
+  }
   const demoAdmin = async (action: string, payload: Record<string, unknown>) => setData(prev => {
     if (action === 'add_participant') return { ...prev, participants: [...prev.participants, { id: crypto.randomUUID(), name: String(payload.name), gender: (payload.gender as AppData['participants'][number]['gender']) ?? 'unspecified', is_active: true }] }
     if (action === 'toggle_participant') return { ...prev, participants: prev.participants.map(p => p.id === payload.id ? { ...p, is_active: !p.is_active } : p) }
@@ -109,5 +126,5 @@ export function useAppData(userName: string) {
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, resetEventData, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, resetEventData, deleteMatch, refresh: load }
 }

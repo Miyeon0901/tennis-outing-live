@@ -17,3 +17,6 @@
 .participation-types small{display:flex;align-items:baseline;gap:12px;white-space:nowrap}
 .participation-types strong{min-width:52px;color:var(--green);font-size:11px}
 @media(max-width:600px){.participation-list>div{grid-template-columns:65px minmax(0,1fr) 25px}.participation-types{grid-column:1/-1}.participation-types small{gap:12px}}
+
+.match-admin>div{grid-template-columns:minmax(0,1fr) 60px 100px 64px}
+@media(max-width:600px){.match-admin>div{grid-template-columns:minmax(0,1fr) 45px 85px}.match-admin>div>.danger{grid-column:3;justify-self:stretch}}
