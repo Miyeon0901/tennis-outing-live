@@ -59,3 +59,27 @@ describe('match deletion',()=>{
     expect(result.current.data.matches).toHaveLength(6)
   })
 })
+
+describe('all-attendee lucky draw',()=>{
+  it('opens the name roulette without requiring completed matches or saving a draw',async()=>{
+    await openAdmin()
+    fireEvent.click(screen.getByRole('button',{name:'🎁 추첨 화면 열기'}))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('전체 참석자 14명 중 행운의 주인공은?')).toBeInTheDocument()
+    expect(screen.getByRole('button',{name:'추첨'})).toBeEnabled()
+    expect(screen.queryByText(/당첨을 축하합니다/)).not.toBeInTheDocument()
+  })
+  it('draws from active attendees even with zero finished games and saves the winner',async()=>{
+    const {result}=renderHook(()=>useAppData('운영자'))
+    vi.spyOn(Math,'random').mockReturnValue(0)
+    await act(async()=>{await result.current.admin('toggle_participant',{id:'p1'},'1121')})
+    expect(result.current.data.matches.some(m=>m.status==='finished')).toBe(false)
+    await act(async()=>{
+      const draw=await result.current.drawLucky('1121')
+      expect(draw.winner_id).toBe('p2')
+      expect(draw.pool_type).toBe('all')
+    })
+    expect(result.current.data.luckyDraws).toHaveLength(1)
+    expect(result.current.data.luckyDraws[0].winner_id).toBe('p2')
+  })
+})

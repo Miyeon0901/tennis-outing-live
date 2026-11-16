@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { demoData } from '../lib/demo'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import type { AppData, Match, Team } from '../types'
+import type { AppData, LuckyDraw, Match, Team } from '../types'
 
 const cloneDemo = () => structuredClone(demoData)
 
@@ -82,6 +82,22 @@ export function useAppData(userName: string) {
     const { error } = await supabase.rpc('admin_action', { p_action: action, p_payload: payload, p_admin_token: token, p_updated_by: userName })
     if (error) throw error
   }
+  const drawLucky = async (token: string): Promise<LuckyDraw> => {
+    if (!supabase) {
+      if (!await verifyAdmin(token)) throw new Error('관리자 PIN이 올바르지 않습니다.')
+      const pool=data.participants.filter(p=>p.is_active)
+      if (!pool.length) throw new Error('추첨 가능한 참가자가 없습니다.')
+      const winner=pool[Math.floor(Math.random()*pool.length)]
+      const draw:LuckyDraw={id:crypto.randomUUID(),winner_id:winner.id,pool_type:'all',exclude_award_winners:false,drawn_at:new Date().toISOString(),drawn_by:userName}
+      setData(prev=>({...prev,luckyDraws:[draw,...prev.luckyDraws]}))
+      return draw
+    }
+    await admin('lucky_draw',{pool_type:'all',exclude_award_winners:false},token)
+    const {data:draw,error}=await supabase.from('lucky_draws').select('*').order('drawn_at',{ascending:false}).limit(1).single()
+    if(error||!draw)throw new Error('추첨은 저장됐지만 결과를 불러오지 못했습니다. 창을 닫고 새로고침 후 이벤트 화면을 확인해주세요.')
+    setData(prev=>({...prev,luckyDraws:[draw,...prev.luckyDraws.filter(d=>d.id!==draw.id)]}))
+    return draw as LuckyDraw
+  }
   const resetEventData = async (token: string) => {
     if (!supabase) { await demoAdmin('reset_scores', {}); return }
     const { error } = await supabase.rpc('reset_event_data', { p_admin_token: token, p_updated_by: userName })
@@ -112,7 +128,7 @@ export function useAppData(userName: string) {
     if (action === 'vote_status') return { ...prev, settings: { ...prev.settings, fashion_vote_status: payload.status as AppData['settings']['fashion_vote_status'] } }
     if (action === 'setting') return { ...prev, settings: { ...prev.settings, [String(payload.key)]: payload.value } }
     if (action === 'reset_scores') return { ...prev, rounds: [], matches: [], scoreEvents: [], fashionVotes: [], luckyDraws: [], settings: { ...prev.settings, current_round: 1, fashion_vote_status: 'not_started', reveal_fashion_during_vote: false } }
-    if (action === 'lucky_draw') { const pool = prev.participants.filter(p => prev.matches.some(m => m.status==='finished' && [...m.team_a,...m.team_b].some(x=>x.id===p.id))); const winner=pool[Math.floor(Math.random()*pool.length)]; return winner ? { ...prev, luckyDraws: [{ id: crypto.randomUUID(), winner_id: winner.id, pool_type: String(payload.pool_type), exclude_award_winners: Boolean(payload.exclude_award_winners), drawn_at: new Date().toISOString(), drawn_by: userName }, ...prev.luckyDraws] } : prev }
+    if (action === 'lucky_draw') { const pool = prev.participants.filter(p => p.is_active && (payload.pool_type==='all'||prev.matches.some(m => m.status==='finished' && [...m.team_a,...m.team_b].some(x=>x.id===p.id)))); const winner=pool[Math.floor(Math.random()*pool.length)]; return winner ? { ...prev, luckyDraws: [{ id: crypto.randomUUID(), winner_id: winner.id, pool_type: String(payload.pool_type), exclude_award_winners: Boolean(payload.exclude_award_winners), drawn_at: new Date().toISOString(), drawn_by: userName }, ...prev.luckyDraws] } : prev }
     if (action === 'create_match') {
       const ids = payload.players as string[], byId = (id: string) => prev.participants.find(p => p.id === id)!
       return { ...prev, matches: [...prev.matches, { id: crypto.randomUUID(), match_number: Number(payload.match_number), court_number: Number(payload.court_number), round_id: String(payload.round_id || '') || null, order_index: Number(payload.order_index || 0), status: 'waiting', team_a_score: 0, team_b_score: 0, started_at: null, finished_at: null, updated_at: new Date().toISOString(), updated_by: userName, team_a: ids.slice(0,2).map(byId), team_b: ids.slice(2).map(byId) }] }
@@ -126,5 +142,5 @@ export function useAppData(userName: string) {
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, resetEventData, deleteMatch, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, deleteMatch, refresh: load }
 }

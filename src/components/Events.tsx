@@ -18,7 +18,7 @@ export default function Events({data,stats,onVote,userName}:{data:AppData;stats:
       {data.settings.fashion_vote_status==='open'?<><div className="vote-grid">{data.participants.filter(p=>p.is_active).map(p=><button disabled={p.id===me?.id} className={choices.includes(p.id)?'selected':''} onClick={()=>toggle(p.id)} key={p.id}>{p.name}{p.id===me?.id&&<small>본인</small>}{visible&&<b>{counts.find(x=>x.p.id===p.id)?.count}표</b>}</button>)}</div><button className="primary full" disabled={!choices.length} onClick={submit}>{choices.length}명 선택 저장하기</button></>:<div className="closed-box">{data.settings.fashion_vote_status==='closed'?'투표가 마감되었습니다.':'아직 투표가 시작되지 않았습니다.'}</div>}
       {message&&<p className="success-message">{message}</p>}
     </article>
-    <article className="event-card lucky"><div className="event-icon"><Gift/></div><p className="eyebrow">LUCKY DRAW</p><h3>오늘의 럭키 플레이어</h3>{drawWinner?<div className="draw-result"><span>🎉</span><strong>{drawWinner.name}</strong><p>{new Date(draw.drawn_at).toLocaleString('ko-KR')} 추첨</p></div>:<div className="closed-box">아직 추첨 전입니다. 모든 경기가 끝난 뒤 공개해요!</div>}</article>
+    <article className="event-card lucky"><div className="event-icon"><Gift/></div><p className="eyebrow">LUCKY DRAW</p><h3>오늘의 럭키 플레이어</h3>{drawWinner?<div className="draw-result"><span>🎉</span><strong>{drawWinner.name}</strong><p>{new Date(draw.drawn_at).toLocaleString('ko-KR')} 추첨</p></div>:<div className="closed-box">활성 참석자 전원이 추첨 대상입니다. 관리자가 추첨하면 당첨자를 공개해요!</div>}</article>
     <article className="final-awards"><p className="eyebrow">FINAL CEREMONY PREVIEW</p><h3>🏆 11/21 TENNIS AWARDS</h3><p>득점왕 · 다승왕 · {data.settings.resilience_award_name} · 베스트 드레서 · 럭키드로우</p><small>관리 화면에서 행사 종료 후 최종 결과를 확인할 수 있습니다.</small></article>
   </section>
 }
