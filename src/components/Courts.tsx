@@ -23,7 +23,7 @@ export default function Courts({ data, onScore, onStatus }: { data: AppData; onS
         </div>
         <footer><div className="updated"><Clock3 size={14}/>{match.updated_by ? `${time(match.updated_at)} · ${match.updated_by}` : '아직 기록 없음'}</div>
           {match.status==='waiting' && <button className="primary small" disabled={busy!==null} onClick={()=>void perform(match.id,()=>onStatus(match.id,'playing'))}>경기 시작</button>}
-          {match.status==='playing' && <button className="finish small" disabled={busy!==null} onClick={()=>{if(confirm('이 점수로 경기를 종료할까요?'))void perform(match.id,()=>onStatus(match.id,'finished'))}}>경기 종료</button>}
+          {match.status==='playing' && <button className="finish small" disabled={busy!==null} onClick={()=>{if(confirm(`${courtLabel(court)}코트 · #${match.match_number} 경기\n\n팀 A: ${match.team_a.map(p=>p.name).join(' + ')}\n팀 B: ${match.team_b.map(p=>p.name).join(' + ')}\n최종 점수: ${match.team_a_score} : ${match.team_b_score}\n\n이 결과로 경기를 종료할까요?`))void perform(match.id,()=>onStatus(match.id,'finished'))}}>경기 종료</button>}
         </footer></>}
     </article>})}</div>
     <div className="next-link">다음 대진은 <b>대진 탭</b>에서 확인할 수 있어요.</div>
