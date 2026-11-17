@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { demoData } from '../lib/demo'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { AppData, LuckyDraw, Match, Team } from '../types'
+import { COURTS, assertCanStart } from '../lib/courts'
 
 const cloneDemo = () => structuredClone(demoData)
 
@@ -51,10 +52,33 @@ export function useAppData(userName: string) {
       updated_at: new Date().toISOString(), updated_by: userName })), scoreEvents: [{ id: crypto.randomUUID(), match_id: matchId, team, delta, created_at: new Date().toISOString(), created_by: userName }, ...prev.scoreEvents] }))
   }
   const setStatus = async (matchId: string, status: Match['status'], adminToken?: string) => {
+    const match=data.matches.find(m=>m.id===matchId)
+    if(!match)throw new Error('경기를 찾을 수 없습니다.')
+    if(status==='playing')assertCanStart(match,data.matches)
+    if(status==='finished'&&match.court_number===null)throw new Error('코트에 먼저 배정해주세요.')
     if (supabase) {
       const { error } = await supabase.rpc('set_match_status', { p_match_id: matchId, p_status: status, p_updated_by: userName, p_admin_token: adminToken ?? null })
       if (error) throw error
     } else setData(prev => ({ ...prev, matches: prev.matches.map(m => m.id === matchId ? { ...m, status, started_at: status === 'playing' ? (m.started_at ?? new Date().toISOString()) : m.started_at, finished_at: status === 'finished' ? new Date().toISOString() : null, updated_at: new Date().toISOString(), updated_by: userName } : m) }))
+  }
+  const assignCourt = async (match: Match, court: number|null, token: string) => {
+    if(court!==null&&!COURTS.some(c=>c===court))throw new Error('A~D코트 중에서 선택해주세요.')
+    if(supabase){
+      const {data:updated,error}=await supabase.rpc('assign_match_court',{
+        p_match_id:match.id,p_court_number:court,p_expected_updated_at:match.updated_at,p_admin_token:token,p_updated_by:userName,
+      })
+      if(error)throw new Error(error.message)
+      setData(prev=>({...prev,matches:prev.matches.map(m=>m.id===match.id?{...m,...updated}:m)}))
+      await load()
+    }else{
+      if(!await verifyAdmin(token))throw new Error('관리자 PIN이 올바르지 않습니다.')
+      const current=data.matches.find(m=>m.id===match.id)
+      if(!current)throw new Error('경기를 찾을 수 없습니다.')
+      if(current.status!=='waiting')throw new Error('대기 중인 경기만 코트를 변경할 수 있습니다.')
+      if(current.updated_at!==match.updated_at)throw new Error('경기가 변경되었습니다. 최신 대진을 확인한 뒤 다시 배정해주세요.')
+      const now=new Date(Math.max(Date.now(),Date.parse(current.updated_at)+1)).toISOString()
+      setData(prev=>({...prev,matches:prev.matches.map(m=>m.id===match.id?{...m,court_number:court,updated_at:now,updated_by:userName}:m)}))
+    }
   }
   const vote = async (voterId: string, candidateIds: string[]) => {
     if (supabase) { const { error } = await supabase.rpc('set_fashion_votes', { p_voter_id: voterId, p_candidate_ids: candidateIds }); if (error) throw new Error(error.message) }
@@ -153,16 +177,17 @@ export function useAppData(userName: string) {
     if (action === 'lucky_draw') { const pool = prev.participants.filter(p => p.is_active && (payload.pool_type==='all'||prev.matches.some(m => m.status==='finished' && [...m.team_a,...m.team_b].some(x=>x.id===p.id)))); const winner=pool[Math.floor(Math.random()*pool.length)]; return winner ? { ...prev, luckyDraws: [{ id: crypto.randomUUID(), winner_id: winner.id, pool_type: String(payload.pool_type), exclude_award_winners: Boolean(payload.exclude_award_winners), drawn_at: new Date().toISOString(), drawn_by: userName }, ...prev.luckyDraws] } : prev }
     if (action === 'create_match') {
       const ids = payload.players as string[], byId = (id: string) => prev.participants.find(p => p.id === id)!
-      return { ...prev, matches: [...prev.matches, { id: crypto.randomUUID(), match_number: Number(payload.match_number), court_number: Number(payload.court_number), round_id: String(payload.round_id || '') || null, order_index: Number(payload.order_index || 0), status: 'waiting', team_a_score: 0, team_b_score: 0, started_at: null, finished_at: null, updated_at: new Date().toISOString(), updated_by: userName, team_a: ids.slice(0,2).map(byId), team_b: ids.slice(2).map(byId) }] }
+      return { ...prev, matches: [...prev.matches, { id: crypto.randomUUID(), match_number: Number(payload.match_number), court_number: null, round_id: String(payload.round_id || '') || null, order_index: Number(payload.order_index || 0), status: 'waiting', team_a_score: 0, team_b_score: 0, started_at: null, finished_at: null, updated_at: new Date().toISOString(), updated_by: userName, team_a: ids.slice(0,2).map(byId), team_b: ids.slice(2).map(byId) }] }
     }
     if (action === 'generate_schedule') {
-      const generated = payload.rounds as Array<{roundNumber:number;rests:string[];matches:Array<{court:number;matchNumber:number;teamA:string[];teamB:string[]}>}>
+      const generated = payload.rounds as Array<{roundNumber:number;rests:string[];matches:Array<{matchNumber:number;teamA:string[];teamB:string[]}>}>
       const byId = (id:string)=>prev.participants.find(p=>p.id===id)!
       const rounds = generated.map(r=>({id:`demo-r${r.roundNumber}`,round_number:r.roundNumber,label:`ROUND ${r.roundNumber}`,status:'waiting' as const,rest_participant_ids:r.rests}))
-      const matches = generated.flatMap(r=>r.matches.map(g=>({id:crypto.randomUUID(),match_number:g.matchNumber,court_number:g.court,round_id:`demo-r${r.roundNumber}`,order_index:r.roundNumber,status:'waiting' as const,team_a_score:0,team_b_score:0,started_at:null,finished_at:null,updated_at:new Date().toISOString(),updated_by:userName,team_a:g.teamA.map(byId),team_b:g.teamB.map(byId)})))
-      return {...prev,rounds,matches}
+      const matches = generated.flatMap(r=>r.matches.map(g=>({id:crypto.randomUUID(),match_number:g.matchNumber,court_number:null,round_id:`demo-r${r.roundNumber}`,order_index:r.roundNumber,status:'waiting' as const,team_a_score:0,team_b_score:0,started_at:null,finished_at:null,updated_at:new Date().toISOString(),updated_by:userName,team_a:g.teamA.map(byId),team_b:g.teamB.map(byId)})))
+      const retained=prev.matches.filter(m=>m.status!=='waiting')
+      return {...prev,rounds:[...prev.rounds.filter(r=>retained.some(m=>m.round_id===r.id)),...rounds],matches:[...retained,...matches]}
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, updateMatchResult, deleteMatch, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, assignCourt, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, updateMatchResult, deleteMatch, refresh: load }
 }

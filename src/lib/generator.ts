@@ -1,4 +1,5 @@
 import type { Match, Participant, PlayerStat } from '../types'
+import { COURTS } from './courts'
 
 type PairCounts = Map<string, number>
 const pairKey = (a: string, b: string) => [a, b].sort().join(':')
@@ -18,15 +19,16 @@ export function generateBalancedGames(participants: Participant[], gameCount: nu
   const allActive = participants.filter(p => p.is_active)
   const eligible = type === 'male' ? allActive.filter(p => p.gender === 'male') : type === 'female' ? allActive.filter(p => p.gender === 'female') : allActive
   const gamesPerGroup = type === 'mixed'
-    ? Math.min(3, Math.floor(allActive.filter(p => p.gender === 'male').length / 2), Math.floor(allActive.filter(p => p.gender === 'female').length / 2))
-    : Math.min(3, Math.floor(eligible.length / 4))
+    ? Math.min(COURTS.length, Math.floor(allActive.filter(p => p.gender === 'male').length / 2), Math.floor(allActive.filter(p => p.gender === 'female').length / 2))
+    : Math.min(COURTS.length, Math.floor(eligible.length / 4))
   if (gamesPerGroup < 1 || gameCount < 1) return []
   const generated = generateBalancedRounds(participants, Math.ceil(gameCount / gamesPerGroup), startMatchNumber, type)
-  let remaining = gameCount, courtIndex = 0
+  let remaining = gameCount
   return generated.map(round => {
-    const matches = round.matches.slice(0, remaining).map(match => ({ ...match, court: courtIndex++ % 3 + 1 }))
+    const matches = round.matches.slice(0, remaining)
     remaining -= matches.length
-    return { ...round, matches }
+    const ids=new Set(matches.flatMap(m=>[...m.teamA,...m.teamB].map(p=>p.id)))
+    return { ...round, matches, rests: allActive.filter(p=>!ids.has(p.id)) }
   }).filter(round => round.matches.length > 0)
 }
 
@@ -37,7 +39,7 @@ export function generateBalancedRounds(participants: Participant[], roundCount: 
   const played = new Map(allActive.map(p => [p.id, 0]))
   const rested = new Map(allActive.map(p => [p.id, 0]))
   const partners: PairCounts = new Map(), opponents: PairCounts = new Map()
-  const rounds: Array<{ roundNumber: number; matches: Array<{ court: number; teamA: Participant[]; teamB: Participant[]; matchNumber: number }>; rests: Participant[] }> = []
+  const rounds: Array<{ roundNumber: number; matches: Array<{ teamA: Participant[]; teamB: Participant[]; matchNumber: number }>; rests: Participant[] }> = []
   let matchNumber = startMatchNumber
   const orderPlayers = (pool: Participant[]) => [...pool].sort((a, b) => (played.get(a.id)! - played.get(b.id)!) || (rested.get(b.id)! - rested.get(a.id)!) || a.name.localeCompare(b.name, 'ko'))
 
@@ -45,26 +47,26 @@ export function generateBalancedRounds(participants: Participant[], roundCount: 
     let selected: Participant[]
     if (type === 'mixed') {
       const men = orderPlayers(active.filter(p => p.gender === 'male')), women = orderPlayers(active.filter(p => p.gender === 'female'))
-      const courts = Math.min(3, Math.floor(men.length / 2), Math.floor(women.length / 2))
+      const courts = Math.min(COURTS.length, Math.floor(men.length / 2), Math.floor(women.length / 2))
       selected = [...men.slice(0, courts * 2), ...women.slice(0, courts * 2)]
     } else {
-      const capacity = Math.min(12, Math.floor(active.length / 4) * 4)
+      const capacity = Math.min(COURTS.length * 4, Math.floor(active.length / 4) * 4)
       selected = orderPlayers(active).slice(0, capacity)
     }
     const selectedIds = new Set(selected.map(p => p.id)), rests = allActive.filter(p => !selectedIds.has(p.id))
     rests.forEach(p => rested.set(p.id, rested.get(p.id)! + 1))
-    const games: Array<{ court: number; teamA: Participant[]; teamB: Participant[]; matchNumber: number }> = []
+    const games: Array<{ teamA: Participant[]; teamB: Participant[]; matchNumber: number }> = []
     if (type === 'mixed') {
       const men=selected.filter(p=>p.gender==='male'), womenBase=selected.filter(p=>p.gender==='female')
       const shift=womenBase.length?(r-1)%womenBase.length:0, women=[...womenBase.slice(shift),...womenBase.slice(0,shift)]
       for(let c=1;c<=Math.min(men.length,women.length)/2;c++){
         const teamA=[men[(c-1)*2],women[(c-1)*2]], teamB=[men[(c-1)*2+1],women[(c-1)*2+1]]
         ;[...teamA,...teamB].forEach(p=>played.set(p.id,played.get(p.id)!+1))
-        games.push({court:c,teamA,teamB,matchNumber:matchNumber++})
+        games.push({teamA,teamB,matchNumber:matchNumber++})
       }
     } else {
       const pool = [...selected]
-      for (let c = 1; c <= Math.min(3, selected.length / 4); c++) {
+      for (let c = 1; c <= Math.min(COURTS.length, selected.length / 4); c++) {
       const first = pool.shift()!
       const partnerIndex = pool.reduce((best, p, i) => (partners.get(pairKey(first.id, p.id)) ?? 0) < (partners.get(pairKey(first.id, pool[best]?.id ?? '')) ?? Infinity) ? i : best, 0)
       const partner = pool.splice(Math.max(0, partnerIndex), 1)[0]
@@ -77,7 +79,7 @@ export function generateBalancedRounds(participants: Participant[], roundCount: 
       partners.set(pairKey(opp1.id, opp2.id), (partners.get(pairKey(opp1.id, opp2.id)) ?? 0) + 1)
       teamA.forEach(a => teamB.forEach(b => opponents.set(pairKey(a.id, b.id), (opponents.get(pairKey(a.id, b.id)) ?? 0) + 1)))
       ;[...teamA, ...teamB].forEach(p => played.set(p.id, played.get(p.id)! + 1))
-      games.push({ court: c, teamA, teamB, matchNumber: matchNumber++ })
+      games.push({ teamA, teamB, matchNumber: matchNumber++ })
       }
     }
     rounds.push({ roundNumber: r, matches: games, rests })

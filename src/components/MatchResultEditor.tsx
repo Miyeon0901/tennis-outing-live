@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Match } from '../types'
-import { courtLabel } from '../lib/courts'
+import { courtName } from '../lib/courts'
 
 export default function MatchResultEditor({match,onSave,onClose}:{match:Match;onSave:(a:number,b:number)=>Promise<void>;onClose:()=>void}){
   const [scoreA,setScoreA]=useState(String(match.team_a_score)),[scoreB,setScoreB]=useState(String(match.team_b_score))
@@ -30,7 +30,7 @@ export default function MatchResultEditor({match,onSave,onClose}:{match:Match;on
     finally{busy.current=false;setSaving(false)}
   }
   return <div className="modal-backdrop"><section ref={dialog} className="match-result-dialog" role="dialog" aria-modal="true" aria-labelledby="match-result-title">
-    <p className="eyebrow">MATCH RESULT</p><h2 id="match-result-title">#{match.match_number} {courtLabel(match.court_number)}코트 결과 수정</h2>
+    <p className="eyebrow">MATCH RESULT</p><h2 id="match-result-title">#{match.match_number} {courtName(match.court_number)} 결과 수정</h2>
     <p>기존 결과 {match.team_a_score} : {match.team_b_score} · 종료 상태는 유지됩니다.</p>
     <form onSubmit={event=>{event.preventDefault();void save()}}>
       <div className="match-result-inputs">

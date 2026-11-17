@@ -5,7 +5,7 @@ export type Gender = 'male' | 'female' | 'unspecified'
 export interface Participant { id: string; name: string; gender: Gender; is_active: boolean; created_at?: string }
 export interface Round { id: string; round_number: number; label: string; status: 'waiting' | 'playing' | 'finished'; rest_participant_ids: string[] }
 export interface Match {
-  id: string; match_number: number; court_number: number; round_id: string | null; order_index: number
+  id: string; match_number: number; court_number: number | null; round_id: string | null; order_index: number
   status: MatchStatus; team_a_score: number; team_b_score: number; started_at: string | null
   finished_at: string | null; updated_at: string; updated_by: string | null
   team_a: Participant[]; team_b: Participant[]

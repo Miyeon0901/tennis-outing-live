@@ -46,3 +46,17 @@
 .match-result-inputs input{width:100%;min-width:0;text-align:center;border:1px solid var(--line);border-radius:10px;padding:12px 4px;font-size:30px;font-weight:800}
 .match-result-inputs>strong{text-align:center;font-size:26px}.match-result-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
 .match-result-dialog .match-result-error{color:#a52d1d!important}.match-result-dialog button:disabled{opacity:.5;cursor:default}
+
+.court-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.court-round-summary>strong{flex-wrap:wrap}
+.court-assignment-panel{margin-bottom:18px}.court-assignment-panel>p{font-size:12px;color:var(--muted);line-height:1.7}
+.court-assignment-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}
+.court-assignment-grid>section{min-width:0;padding:15px;background:#f3f6f2;border:1px solid var(--line);border-radius:10px}
+.court-assignment-grid h4{margin:0 0 10px;font-size:18px}.court-assignment-grid p,.court-assignment-grid small{font-size:11px;color:var(--muted)}
+.court-assignment-grid small{display:block;overflow-wrap:anywhere;margin-bottom:10px}.court-assignment-grid select{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px;font-size:12px}
+.court-assignment-grid button:disabled{opacity:.45;cursor:default}.unassigned-matches{margin-bottom:18px}
+.match-admin .match-court-select{display:block;width:140px;max-width:100%;margin-top:6px;font-size:11px}
+.court-action-error{padding:12px;border:1px solid #efb0a5;background:#fff4f1;color:#a52d1d;border-radius:9px;margin-bottom:12px;font-size:12px}
+@media(max-width:1100px) and (min-width:901px){.court-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.court-tabs{grid-template-columns:repeat(4,1fr)}.court-grid{grid-template-columns:1fr}.court-assignment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.court-assignment-grid{grid-template-columns:1fr}.court-tabs button b{font-size:18px}}

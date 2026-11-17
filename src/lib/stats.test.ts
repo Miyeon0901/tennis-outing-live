@@ -57,12 +57,26 @@ describe('statistics',()=>{
     expect(rounds[0].matches).toHaveLength(3)
     rounds.flatMap(r=>r.matches).forEach(m=>[m.teamA,m.teamB].forEach(team=>expect(team.map(p=>p.gender).sort()).toEqual(['female','male'])))
   })
-  it('creates the requested game count and assigns courts A-B-C in sequence',()=>{
+  it('creates the requested game count without assigning courts',()=>{
     const groups=generateBalancedGames(demoData.participants,4,1,'female')
     const games=groups.flatMap(group=>group.matches)
     expect(games).toHaveLength(4)
-    expect(games.map(game=>game.court)).toEqual([1,2,3,1])
+    games.forEach(game=>expect(game).not.toHaveProperty('court'))
     expect(games.map(game=>game.matchNumber)).toEqual([1,2,3,4])
+  })
+  it('plans four disjoint matches and one rest for 17 players, balancing a full rotation',()=>{
+    const people:Participant[]=Array.from({length:17},(_,i)=>({id:`p${i}`,name:`참가자${i}`,gender:i%2?'female':'male',is_active:true}))
+    const rounds=generateBalancedRounds(people,17)
+    rounds.forEach(round=>{
+      expect(round.matches).toHaveLength(4)
+      expect(new Set(round.matches.flatMap(m=>[...m.teamA,...m.teamB].map(p=>p.id))).size).toBe(16)
+      expect(round.rests).toHaveLength(1)
+    })
+    const counts=people.map(p=>rounds.filter(r=>r.matches.some(m=>[...m.teamA,...m.teamB].some(x=>x.id===p.id))).length)
+    expect(new Set(counts)).toEqual(new Set([16]))
+    const partial=generateBalancedGames(people,5)
+    expect(partial.flatMap(r=>r.matches)).toHaveLength(5)
+    expect(partial[1].rests).toHaveLength(13)
   })
   it('recommends non-playing players with fewer completed games first',()=>{
     const data=JSON.parse(JSON.stringify(demoData)) as typeof demoData; data.matches.forEach(m=>m.status='waiting'); const stats=playerStats(data.participants,data.matches); stats.forEach(s=>s.completed=3); stats[0].completed=5; stats[1].completed=1
