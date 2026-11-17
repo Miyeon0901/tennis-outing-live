@@ -12,5 +12,5 @@ export const demoData: AppData = {
   participants, rounds,
   matches: [match(1,1,1,[1,2,3,4]), match(2,2,1,[5,6,7,8]), match(3,3,1,[9,10,11,12]), match(4,1,2,[13,14,1,5]), match(5,2,2,[2,6,3,7]), match(6,3,2,[4,8,9,10])],
   scoreEvents: [], fashionVotes: [], luckyDraws: [],
-  settings: { current_round: 1, event_title: '11/21 테니스 미니게임', event_date: '2026-11-21', venue: '건국대학교 스포츠과학타운 테니스장', fashion_vote_status: 'not_started', reveal_fashion_during_vote: false, resilience_award_name: '불굴의 의지상', allow_duplicate_awards: true },
+  settings: { current_round: 1, event_title: '11/21 테니스 미니게임', event_date: '2026-11-21', venue: '건국대학교 스포츠과학타운 테니스장', fashion_vote_status: 'not_started', reveal_fashion_during_vote: false, resilience_award_name: '불굴의 의지상', allow_duplicate_awards: true, award_match_limit: 5 },
 }

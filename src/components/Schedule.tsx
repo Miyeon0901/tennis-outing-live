@@ -1,8 +1,10 @@
 import type { AppData, PlayerStat } from '../types'
 import type { fairness } from '../lib/stats'
 import { COURTS, courtLabel } from '../lib/courts'
+import { awardMatchLimit } from '../lib/awardParticipation'
 
 export default function Schedule({data,stats,fairness:f}:{data:AppData;stats:PlayerStat[];fairness:ReturnType<typeof fairness>}) {
+  const matchLimit=awardMatchLimit(data.settings.award_match_limit)
   const unassigned=data.matches.filter(m=>m.court_number===null&&m.status==='waiting').sort((a,b)=>a.match_number-b.match_number)
   return <section className="page-section"><div className="section-title"><div><p className="eyebrow">MATCH PLAN</p><h2>대진 및 코트 배정</h2></div></div>
     {f.spread>=2&&<div className="warning">⚠ 경기 수 편차가 발생했습니다. {f.min}경기 참가자가 있습니다.</div>}
@@ -20,6 +22,8 @@ export default function Schedule({data,stats,fairness:f}:{data:AppData;stats:Pla
       <div className="bar"><i style={{width:`${Math.max(4,s.completed/Math.max(1,f.max)*100)}%`}}/></div>
       <b aria-label={`총 완료 ${s.completed}경기`}>{s.completed}</b>
       <div className="participation-types">
+        <small><strong>시상 집계</strong><span>반영 {s.awardCompleted} / 제외 {s.awardExcluded}</span></small>
+        <small><strong>참여 목표</strong><span>{s.completed>=matchLimit?`${matchLimit}경기 달성`:`${matchLimit}경기까지 ${matchLimit-s.completed}경기 남음`}</span></small>
         {(['same','mixed','unclassified'] as const).map(type=>{
           const counts=s.doublesParticipation[type]
           if(type==='unclassified'&&!Object.values(counts).some(Boolean))return null

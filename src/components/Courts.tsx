@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Clock3, Minus, Plus } from 'lucide-react'
 import type { AppData, Match, Team } from '../types'
 import { COURTS, courtLabel, currentMatch } from '../lib/courts'
+import { awardAppearances, awardMatchLimit } from '../lib/awardParticipation'
+import MatchAwardStatus from './MatchAwardStatus'
 
 export default function Courts({ data, onScore, onStatus }: { data: AppData; onScore: (id:string, team:Team, delta:number)=>Promise<void>; onStatus:(id:string,status:Match['status'])=>Promise<void> }) {
   const [busy, setBusy] = useState<string|null>(null)
   const [error,setError]=useState('')
   const [selectedCourt, setSelectedCourt] = useState(1)
+  const matchLimit = awardMatchLimit(data.settings.award_match_limit)
+  const appearances = useMemo(()=>awardAppearances(data.matches,matchLimit),[data.matches,matchLimit])
   const activeFor = (court: number) => currentMatch(data.matches,court)
   const perform=async(key:string,work:()=>Promise<void>)=>{if(busy)return;setBusy(key);setError('');try{await work()}catch(e){setError(e instanceof Error?e.message:'경기를 변경하지 못했습니다.')}finally{setBusy(null)}}
   const score = (match: Match, team: Team, delta: number) => perform(`${match.id}${team}${delta}`,()=>onScore(match.id,team,delta))
@@ -21,6 +25,7 @@ export default function Courts({ data, onScore, onStatus }: { data: AppData; onS
           <div className="score-divider"><span>:</span><small>POINTS</small></div>
           <TeamScore label="TEAM B" players={match.team_b.map(p=>p.name)} score={match.team_b_score} disabled={match.status!=='playing'} onChange={d=>score(match,'B',d)} busy={busy?.startsWith(`${match.id}B`)}/>
         </div>
+        <MatchAwardStatus match={match} appearances={appearances.get(match.id)}/>
         <footer><div className="updated"><Clock3 size={14}/>{match.updated_by ? `${time(match.updated_at)} · ${match.updated_by}` : '아직 기록 없음'}</div>
           {match.status==='waiting' && <button className="primary small" disabled={busy!==null} onClick={()=>void perform(match.id,()=>onStatus(match.id,'playing'))}>경기 시작</button>}
           {match.status==='playing' && <button className="finish small" disabled={busy!==null} onClick={()=>{if(confirm(`${courtLabel(court)}코트 · #${match.match_number} 경기\n\n팀 A: ${match.team_a.map(p=>p.name).join(' + ')}\n팀 B: ${match.team_b.map(p=>p.name).join(' + ')}\n최종 점수: ${match.team_a_score} : ${match.team_b_score}\n\n이 결과로 경기를 종료할까요?`))void perform(match.id,()=>onStatus(match.id,'finished'))}}>경기 종료</button>}

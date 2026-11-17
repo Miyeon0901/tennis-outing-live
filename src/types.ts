@@ -15,12 +15,14 @@ export interface Settings {
   current_round: number; event_title: string; event_date: string; venue: string
   fashion_vote_status: 'not_started' | 'open' | 'closed'; reveal_fashion_during_vote: boolean
   resilience_award_name: string; allow_duplicate_awards: boolean
+  award_match_limit?: number
 }
 export interface FashionVote { voter_id: string; candidate_id: string; created_at?: string }
 export interface LuckyDraw { id: string; winner_id: string; pool_type: string; exclude_award_winners: boolean; drawn_at: string; drawn_by: string }
 export interface ParticipationCounts { completed: number; playing: number; scheduled: number }
 export interface PlayerStat {
   participant: Participant; scheduled: number; playing: number; completed: number; totalParticipation: number
+  awardCompleted: number; awardExcluded: number
   doublesParticipation: Record<'same' | 'mixed' | 'unclassified', ParticipationCounts>
   lastMatchAt: string | null; isResting: boolean; wins: number; losses: number; draws: number
   scored: number; conceded: number; difference: number; winRate: number

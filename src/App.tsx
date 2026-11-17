@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, CalendarDays, Gift, ListOrdered, LockKeyhole, MapPin, Radio, Settings, Trophy } from 'lucide-react'
 import { useAppData } from './hooks/useAppData'
-import { awardLeaders, fairness, playerStats } from './lib/stats'
+import { awardLeaders, fairness } from './lib/stats'
+import { awardMatchLimit } from './lib/awardParticipation'
 import Courts from './components/Courts'
 import Schedule from './components/Schedule'
 import Live from './components/Live'
@@ -28,8 +29,8 @@ export default function App() {
   const [loggingIn, setLoggingIn] = useState(false)
   const name = session?.name ?? ''
   const api = useAppData(name || '익명')
-  const stats = useMemo(() => playerStats(api.data.participants, api.data.matches), [api.data.participants, api.data.matches])
   const awards = useMemo(() => awardLeaders(api.data), [api.data])
+  const stats = awards.stats
   const fair = useMemo(() => fairness(stats), [stats])
   const finished = api.data.matches.filter(m => m.status === 'finished').length
   const courtGame = (court: number) => {
@@ -87,7 +88,7 @@ export default function App() {
       {tab === 'courts' && <Courts data={api.data} onScore={api.changeScore} onStatus={api.setStatus} />}
       {tab === 'schedule' && <Schedule data={api.data} stats={stats} fairness={fair} />}
       {tab === 'live' && <Live data={api.data} awards={awards} fairness={fair} />}
-      {tab === 'rankings' && <Rankings stats={stats} />}
+      {tab === 'rankings' && <Rankings stats={stats} matchLimit={awardMatchLimit(api.data.settings.award_match_limit)} />}
       {tab === 'events' && <Events data={api.data} stats={stats} onVote={api.vote} userName={name} />}
       {tab === 'admin' && <Admin api={api} stats={stats} />}
     </main>

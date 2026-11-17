@@ -3,6 +3,7 @@ import { demoData } from '../lib/demo'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { AppData, LuckyDraw, Match, Team } from '../types'
 import { COURTS, assertCanStart } from '../lib/courts'
+import { isValidAwardMatchLimit, MAX_AWARD_MATCH_LIMIT } from '../lib/awardParticipation'
 
 const cloneDemo = () => structuredClone(demoData)
 
@@ -90,6 +91,18 @@ export function useAppData(userName: string) {
     if (error) throw error
     return Boolean(ok)
   }
+  const setAwardMatchLimit = async (matchLimit: number, token: string) => {
+    if (!isValidAwardMatchLimit(matchLimit)) throw new Error(`1~${MAX_AWARD_MATCH_LIMIT} 사이의 정수를 입력해주세요.`)
+    if (!supabase) {
+      if (!await verifyAdmin(token)) throw new Error('관리자 PIN이 올바르지 않습니다.')
+      setData(prev=>({...prev,settings:{...prev.settings,award_match_limit:matchLimit}}))
+      return
+    }
+    const {data:settings,error}=await supabase.rpc('set_award_match_limit',{p_match_limit:matchLimit,p_admin_token:token})
+    if (error) throw new Error(error.message)
+    if (!settings || settings.award_match_limit!==matchLimit) throw new Error('저장된 기준을 확인하지 못했습니다. 새로고침 후 다시 확인해주세요.')
+    setData(prev=>({...prev,settings:{...prev.settings,...settings}}))
+  }
   const loginParticipant = async (name: string, phoneLast4: string) => {
     if (!supabase) {
       const participant = data.participants.find(p => p.is_active && p.name === name)
@@ -102,6 +115,9 @@ export function useAppData(userName: string) {
     return row ? data.participants.find(p => p.id === row.participant_id) ?? null : null
   }
   const admin = async (action: string, payload: Record<string, unknown>, token: string) => {
+    if (action==='setting' && payload.key==='award_match_limit') {
+      return setAwardMatchLimit(typeof payload.value==='number'?payload.value:NaN,token)
+    }
     if (!supabase) { await demoAdmin(action, payload); return }
     const { error } = await supabase.rpc('admin_action', { p_action: action, p_payload: payload, p_admin_token: token, p_updated_by: userName })
     if (error) throw error
@@ -189,5 +205,5 @@ export function useAppData(userName: string) {
     }
     return prev
   })
-  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, assignCourt, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, updateMatchResult, deleteMatch, refresh: load }
+  return { data, loading, error, isDemo: !isSupabaseConfigured, changeScore, setStatus, assignCourt, vote, verifyAdmin, loginParticipant, admin, drawLucky, resetEventData, updateMatchResult, deleteMatch, setAwardMatchLimit, refresh: load }
 }

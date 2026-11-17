@@ -1,11 +1,13 @@
 import { Crown, Medal, Shield, Trophy } from 'lucide-react'
 import type { AppData } from '../types'
 import type { awardLeaders, fairness } from '../lib/stats'
+import { awardRule } from '../lib/awardParticipation'
 
 export default function Live({data,awards,fairness:f}:{data:AppData;awards:ReturnType<typeof awardLeaders>;fairness:ReturnType<typeof fairness>}) {
   return <section className="page-section"><div className="hero-live"><p className="eyebrow">REAL-TIME LEADERBOARD</p><h2>LIVE AWARDS</h2><span><i/> 종료 경기 즉시 반영</span></div>
+    <p className="award-rule">{awardRule(data.settings.award_match_limit)}</p>
     <div className="award-grid">
-      <Award icon={<Trophy/>} tone="lime" title="득점왕" leaders={(awards.byScore[0]?.scored??0)>0?awards.scoring.map(s=>s.participant.name):[]} value={`${awards.byScore[0]?.scored??0} POINTS`} note={`${awards.byScore[0]?.completed??0}경기 참여`}/>
+      <Award icon={<Trophy/>} tone="lime" title="득점왕" leaders={(awards.byScore[0]?.scored??0)>0?awards.scoring.map(s=>s.participant.name):[]} value={`${awards.byScore[0]?.scored??0} POINTS`} note={`시상 ${awards.byScore[0]?.awardCompleted??0}경기 반영`}/>
       <Award icon={<Crown/>} tone="gold" title="다승왕" leaders={(awards.byWins[0]?.wins??0)>0?awards.winning.map(s=>s.participant.name):[]} value={`${awards.byWins[0]?.wins??0} WINS`} note={`승률 ${(awards.byWins[0]?.winRate??0).toFixed(0)}%`}/>
       <Award icon={<Shield/>} tone="coral" title={`${data.settings.resilience_award_name} 후보`} leaders={(awards.byLosses[0]?.losses??0)>0?awards.resilience.map(s=>s.participant.name):[]} value={`${awards.byLosses[0]?.losses??0} LOSSES`} note="끝까지 포기하지 않는 플레이어"/>
     </div>
