@@ -80,11 +80,25 @@ describe('match deletion',()=>{
 describe('all-attendee lucky draw',()=>{
   it('opens the name roulette without requiring completed matches or saving a draw',async()=>{
     await openAdmin()
-    fireEvent.click(screen.getByRole('button',{name:'🎁 추첨 화면 열기'}))
+    fireEvent.click(screen.getByRole('button',{name:'🎁 추첨 대상 설정'}))
+    fireEvent.click(screen.getByRole('button',{name:'추첨 화면 열기'}))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('전체 참석자 14명 중 행운의 주인공은?')).toBeInTheDocument()
+    expect(screen.getByText('추첨 대상 14명 중 행운의 주인공은?')).toBeInTheDocument()
     expect(screen.getByRole('button',{name:'추첨'})).toBeEnabled()
     expect(screen.queryByText(/당첨을 축하합니다/)).not.toBeInTheDocument()
+  })
+  it('excludes selected people from both the roulette and the saved draw',async()=>{
+    await openAdmin()
+    vi.spyOn(Math,'random').mockReturnValue(0)
+    fireEvent.click(screen.getByRole('button',{name:'🎁 추첨 대상 설정'}))
+    fireEvent.click(screen.getByRole('checkbox',{name:'참가자1'}))
+    expect(screen.getByText('추첨 대상 13명 · 제외 1명')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button',{name:'추첨 화면 열기'}))
+    const dialog=within(screen.getByRole('dialog'))
+    expect(dialog.getByText('추첨 대상 13명 중 행운의 주인공은?')).toBeInTheDocument()
+    expect(dialog.queryByText('참가자1',{exact:true})).not.toBeInTheDocument()
+    fireEvent.click(dialog.getByRole('button',{name:'추첨'}))
+    expect(await dialog.findByText('참가자2님, 당첨을 축하합니다!')).toBeInTheDocument()
   })
   it('draws from active attendees even with zero finished games and saves the winner',async()=>{
     const {result}=renderHook(()=>useAppData('운영자'))

@@ -46,7 +46,7 @@ export default function LuckyDraw({candidates,onDraw,onClose}:{candidates:Partic
   return <div className="modal-backdrop lucky-draw-backdrop"><section className={`lucky-draw-dialog ${phase}`} role="dialog" aria-modal="true" aria-labelledby="lucky-draw-title">
     <button ref={closeButton} className="ghost lucky-draw-close" disabled={phase==='saving'} onClick={onClose} aria-label="추첨 화면 닫기">닫기</button>
     <p className="eyebrow">LUCKY DRAW</p><h2 id="lucky-draw-title">오늘의 럭키 플레이어</h2>
-    <p className="lucky-draw-caption">{phase==='result'?'행운의 주인공을 소개합니다!':`전체 참석자 ${candidates.length}명 중 행운의 주인공은?`}</p>
+    <p className="lucky-draw-caption">{phase==='result'?'행운의 주인공을 소개합니다!':`추첨 대상 ${candidates.length}명 중 행운의 주인공은?`}</p>
     <div className="lucky-draw-stage">
       <span className="lucky-draw-ball" aria-hidden="true">{phase==='result'?'🎉':'🎾'}</span>
       <strong className="lucky-draw-name" aria-hidden={phase!=='result'}>{winner?.name??candidates[index%candidates.length]?.name??'참가자 없음'}</strong>

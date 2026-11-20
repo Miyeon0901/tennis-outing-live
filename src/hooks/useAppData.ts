@@ -122,19 +122,21 @@ export function useAppData(userName: string) {
     const { error } = await supabase.rpc('admin_action', { p_action: action, p_payload: payload, p_admin_token: token, p_updated_by: userName })
     if (error) throw error
   }
-  const drawLucky = async (token: string): Promise<LuckyDraw> => {
+  const drawLucky = async (token: string, excludedIds: string[] = []): Promise<LuckyDraw> => {
     if (!supabase) {
       if (!await verifyAdmin(token)) throw new Error('관리자 PIN이 올바르지 않습니다.')
-      const pool=data.participants.filter(p=>p.is_active)
+      const pool=data.participants.filter(p=>p.is_active && !excludedIds.includes(p.id))
       if (!pool.length) throw new Error('추첨 가능한 참가자가 없습니다.')
       const winner=pool[Math.floor(Math.random()*pool.length)]
-      const draw:LuckyDraw={id:crypto.randomUUID(),winner_id:winner.id,pool_type:'all',exclude_award_winners:false,drawn_at:new Date().toISOString(),drawn_by:userName}
+      const draw:LuckyDraw={id:crypto.randomUUID(),winner_id:winner.id,pool_type:'all',exclude_award_winners:excludedIds.length>0,drawn_at:new Date().toISOString(),drawn_by:userName}
       setData(prev=>({...prev,luckyDraws:[draw,...prev.luckyDraws]}))
       return draw
     }
-    await admin('lucky_draw',{pool_type:'all',exclude_award_winners:false},token)
-    const {data:draw,error}=await supabase.from('lucky_draws').select('*').order('drawn_at',{ascending:false}).limit(1).single()
-    if(error||!draw)throw new Error('추첨은 저장됐지만 결과를 불러오지 못했습니다. 창을 닫고 새로고침 후 이벤트 화면을 확인해주세요.')
+    const {data:draw,error}=await supabase.rpc('draw_lucky_with_exclusions',{
+      p_excluded_ids:excludedIds,p_admin_token:token,p_updated_by:userName,
+    })
+    if(error)throw new Error(error.message)
+    if(!draw)throw new Error('추첨 결과를 불러오지 못했습니다. 이벤트 화면을 확인해주세요.')
     setData(prev=>({...prev,luckyDraws:[draw,...prev.luckyDraws.filter(d=>d.id!==draw.id)]}))
     return draw as LuckyDraw
   }
