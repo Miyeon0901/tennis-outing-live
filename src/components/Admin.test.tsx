@@ -18,6 +18,23 @@ async function openAdmin(failDelete=false){
   await screen.findByRole('button',{name:'매치 #1 삭제'})
 }
 
+it('blocks starting a second match on an occupied court until the current match ends',async()=>{
+  await openAdmin()
+  const current=screen.getByRole('combobox',{name:'매치 #1 상태'})
+  const next=screen.getByRole('combobox',{name:'매치 #4 상태'})
+  const start=within(next).getByRole('option',{name:'진행중'})
+  expect(current).toHaveValue('playing')
+  expect(start).toBeDisabled()
+  expect(next).toHaveAccessibleDescription('#1 경기 진행 중 · 종료 후 시작 가능')
+  fireEvent.change(current,{target:{value:'finished'}})
+  await waitFor(()=>expect(start).toBeEnabled())
+  expect(next).not.toHaveAccessibleDescription()
+  // Match #4 also shares a player with match #2 on B court.
+  fireEvent.change(screen.getByRole('combobox',{name:'매치 #2 상태'}),{target:{value:'finished'}})
+  fireEvent.change(next,{target:{value:'playing'}})
+  await waitFor(()=>expect(next).toHaveValue('playing'))
+})
+
 describe('match deletion',()=>{
   it('keeps the match when confirmation is declined',async()=>{
     const confirm=vi.spyOn(window,'confirm').mockReturnValue(false)
